@@ -5,6 +5,9 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎧</text></svg>">
 
   <style>
+
+    /* Global styling */
+
     body {
       background: #0f1115;
       color: #e6e6e6;
@@ -34,10 +37,6 @@
       border-radius: 4px;
     }
 
-    button:hover {
-      background: #2a2f3a;
-    }
-
     a {
       color: #4da3ff;
       text-decoration: none;
@@ -47,16 +46,20 @@
       border-radius: 4px;
     }
 
+    /* Utiliy classes */
+
     .row {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
     }
 
+    /* Specific components styling */
+
     .app {
       display: grid;
       grid-template-rows: auto auto 1fr;
-      height: 100vh;
+      /* height: 100vh; */
     }
 
     #results {
@@ -73,7 +76,6 @@
     }
 
     .progress {
-      flex-basis: 100%;
       height: 10px;
       background: #222;
       position: relative;
@@ -97,7 +99,10 @@
 <body>
 <div class="app">
   <div class="row">
-    <h1 style="flex:1">🎧 YT Audio</h1>
+    <h1 style="flex:1">
+      <span style="background-color:darkred; border-radius:999px; padding:8px; margin:0 10px">🎧</span>
+      YT Audio
+    </h1>
     <!--
     <div>
       <a href="https://github.com/damiencorpataux/yt-dlp-audio-api">
@@ -110,23 +115,23 @@
 
   <!-- SEARCH -->
   <form class="row" onsubmit="search(); return false;">
-    <input id="searchInput" autofocus placeholder="search or paste URL" style="flex:1;">
+    <input id="searchInput" autofocus placeholder="Search or paste URL" style="flex:1">
     <button>Search</button>
   </form>
 
   <hr>
 
   <!-- PLAYER -->
-  <div class="row" style="align-items:center">
+  <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
 
     <button onclick="togglePlay()">▶︎ / ⏸︎</button>
-    <span id="time">0:00 / 0:00</span>
-    <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
-
-    <div id="progressBar" class="progress">
+    <span id="time" style="font-family:monospace">0:00 / 0:00</span>
+    <div id="progressBar" class="progress" style="flex:1">
       <div id="bufferedBar" class="buffered"></div>
       <div id="playedBar" class="played"></div>
     </div>
+   <span style="margin-left:16px">🔊</span>
+    <input style="width:50px" type="range" id="volume" min="0" max="1" step="0.01" value="1">
 
   </div>
 
@@ -172,10 +177,20 @@ async function search() {
     return;
   }
 
+  ui.search.parentNode.querySelector("button").disabled = true;
   ui.results.innerHTML = `🎶 Searching for <strong>${q}</strong>...`;
 
-  const res = await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
+    data = await res.json();
+  } catch(e) {
+    alert("❌ Search failed. Please try again.");
+    return;
+  } finally {
+    ui.search.parentNode.querySelector("button").disabled = false;
+    ui.search.focus();
+  }
 
   ui.search.value = "";
   ui.results.innerHTML = "";
@@ -204,6 +219,7 @@ async function search() {
 /* ---------------- PLAYER ---------------- */
 
 function play(url) {
+  // FIXME: Display alert on play fail.
   ui.audio.src = `${API}/stream?url=${encodeURIComponent(url)}`;
   ui.audio.play();
 }
@@ -216,6 +232,7 @@ function togglePlay() {
 ui.volume.oninput = () => {
   ui.audio.volume = ui.volume.value;
 };
+ui.volume.dispatchEvent(new Event('change'));  // Apply volume on page load
 
 /* ---------------- TIME ---------------- */
 
