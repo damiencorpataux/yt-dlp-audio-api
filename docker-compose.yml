@@ -1,0 +1,7 @@
+services:
+  yt-audio:
+    build: .
+    container_name: yt-audio
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
