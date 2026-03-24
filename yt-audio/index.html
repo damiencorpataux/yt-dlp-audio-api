@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>YT Audio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎧</text></svg>">
+
+  <style>
+    body {
+      background: #0f1115;
+      color: #e6e6e6;
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 24px;
+    }
+
+    hr {
+      margin: 20px 0;
+      border: none;
+      height: 1px;
+      background-color: #222;
+    }
+
+    input, button {
+      background: #1a1d24;
+      color: #e6e6e6;
+      border: 1px solid #333;
+      padding: 6px;
+    }
+
+    button {
+      border-radius: 4px;
+    }
+
+    button:hover {
+      background: #2a2f3a;
+    }
+
+    a {
+      color: #4da3ff;
+      text-decoration: none;
+    }
+
+    img {
+      border-radius: 4px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      height: 100vh;
+    }
+
+    #results {
+      overflow-y: auto;
+    }
+    #results .result-item {
+      margin-bottom: 32px;
+      font-size: 85%;
+      align-items: flex-start;
+      gap: 18px;
+    }
+    #results .result-item img {
+      width: 120px;
+    }
+
+    .progress {
+      flex-basis: 100%;
+      height: 10px;
+      background: #222;
+      position: relative;
+      cursor: pointer;
+    }
+    .progress .buffered {
+      position: absolute;
+      height: 100%;
+      background: #555;
+      width: 0%;
+    }
+    .progress .played {
+      position: absolute;
+      height: 100%;
+      background: #4da3ff;
+      width: 0%;
+    }
+  </style>
+</head>
+
+<body>
+<div class="app">
+  <div class="row">
+    <h1 style="flex:1">🎧 YT Audio</h1>
+    <!--
+    <div>
+      <a href="https://github.com/damiencorpataux/yt-dlp-audio-api">
+        <img height="15px" src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg">
+        Fork me
+      </a>
+    </div>
+    -->
+  </div>
+
+  <!-- SEARCH -->
+  <form class="row" onsubmit="search(); return false;">
+    <input id="searchInput" autofocus placeholder="search or paste URL" style="flex:1;">
+    <button>Search</button>
+  </form>
+
+  <hr>
+
+  <!-- PLAYER -->
+  <div class="row" style="align-items:center">
+
+    <button onclick="togglePlay()">▶︎ / ⏸︎</button>
+    <span id="time">0:00 / 0:00</span>
+    <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
+
+    <div id="progressBar" class="progress">
+      <div id="bufferedBar" class="buffered"></div>
+      <div id="playedBar" class="played"></div>
+    </div>
+
+  </div>
+
+  <hr>
+
+  <!-- RESULTS -->
+  <div id="results">
+    🎵 Please search for some music.
+  </div>
+
+  <audio id="audio"></audio>
+</div>
+
+<script>
+const API = "http://localhost:8000";
+
+const ui = {
+  audio: document.getElementById("audio"),
+  search: document.getElementById("searchInput"),
+  results: document.getElementById("results"),
+  time: document.getElementById("time"),
+  volume: document.getElementById("volume"),
+  playedBar: document.getElementById("playedBar"),
+  bufferedBar: document.getElementById("bufferedBar"),
+  progressBar: document.getElementById("progressBar")
+};
+
+let lastBuffered = 0;
+
+/* ---------------- SEARCH ---------------- */
+
+function isURL(str) {
+  return str.startsWith("http://") || str.startsWith("https://");
+}
+
+async function search() {
+  const q = ui.search.value.trim();
+
+  // 🔥 Direct play if URL
+  if (isURL(q)) {
+    ui.results.innerHTML = `🎶 Playing <strong>${q}</strong>...`;
+    play(q);
+    return;
+  }
+
+  ui.results.innerHTML = `🎶 Searching for <strong>${q}</strong>...`;
+
+  const res = await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
+  const data = await res.json();
+
+  ui.search.value = "";
+  ui.results.innerHTML = "";
+
+  data.results.forEach(r => {
+    const div = document.createElement("div");
+    div.className = "row result-item";
+
+    div.innerHTML = `
+      <img src="${r.thumbnail}">
+      <div style="flex:1;">
+        <div><strong>${r.title}</strong></div>
+        <br>
+        <div>${formatTime(r.duration)}</div>
+        <div>${r.channel}</div>
+      </div>
+      <div><button>▶︎ Play</button></div>
+    `;
+
+    div.querySelector("button").onclick = () => play(r.url);
+
+    ui.results.appendChild(div);
+  });
+}
+
+/* ---------------- PLAYER ---------------- */
+
+function play(url) {
+  ui.audio.src = `${API}/stream?url=${encodeURIComponent(url)}`;
+  ui.audio.play();
+}
+
+function togglePlay() {
+  if (ui.audio.paused) ui.audio.play();
+  else ui.audio.pause();
+}
+
+ui.volume.oninput = () => {
+  ui.audio.volume = ui.volume.value;
+};
+
+/* ---------------- TIME ---------------- */
+
+function formatTime(t) {
+  if (isNaN(t)) return "0:00";
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+ui.audio.addEventListener("timeupdate", () => {
+  const current = ui.audio.currentTime;
+  const duration = ui.audio.duration;
+
+  ui.time.textContent =
+    `${formatTime(current)} / ${formatTime(duration)}`;
+
+  if (duration > 0) {
+    ui.playedBar.style.width = (current / duration * 100) + "%";
+  }
+});
+
+/* ---------------- BUFFER ---------------- */
+
+ui.audio.addEventListener("progress", () => {
+  try {
+    if (ui.audio.buffered.length > 0 && ui.audio.duration > 0) {
+
+      const bufferedEnd = ui.audio.buffered.end(ui.audio.buffered.length - 1);
+      lastBuffered = bufferedEnd;
+
+      const percent = (bufferedEnd / ui.audio.duration) * 100;
+      ui.bufferedBar.style.width = percent + "%";
+    }
+  } catch (e) {
+    console.log("Loading: unknown", e);
+  }
+});
+
+/* ---------------- SEEK ---------------- */
+
+ui.progressBar.addEventListener("click", (e) => {
+  if (!ui.audio.duration) return;
+
+  const rect = ui.progressBar.getBoundingClientRect();
+  const ratio = (e.clientX - rect.left) / rect.width;
+
+  const targetTime = ratio * ui.audio.duration;
+
+  // clamp to buffered
+  const safeTime = Math.min(targetTime, lastBuffered);
+
+  ui.audio.currentTime = safeTime;
+});
+
+/* Debug */
+ui.audio.addEventListener("loadstart", () => console.log("loadstart"));
+ui.audio.addEventListener("loadedmetadata", () => console.log("metadata loaded"));
+ui.audio.addEventListener("canplay", () => console.log("can play"));
+
+</script>
+
+</body>
+</html>
