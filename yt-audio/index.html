@@ -194,7 +194,8 @@ async function search() {
     const res = await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
     data = await res.json();
   } catch(e) {
-    alert("❌ Search failed. Please try again.");
+    console.error(e);
+    alert(`❌ Search failed. Please try again.\n\n${String(e)}`);
     ui.results.innerHTML = '';
     return;
   } finally {
@@ -238,7 +239,8 @@ async function play(url) {
     ui.audio.src = `${API}/stream?url=${encodeURIComponent(url)}`;
     await ui.audio.play();
   } catch(e) {
-    alert("❌ Play failed. Please try again.");
+    console.error(e);
+    alert(`❌ Play failed. Please try again.\n\n${String(e)}`);
     ui.trackname.innerHTML = '';
     return;
   }

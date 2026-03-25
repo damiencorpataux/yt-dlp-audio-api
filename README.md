@@ -1,17 +1,17 @@
 # 🎧 YT Audio
 
-Personal youtube search and streaming app.
+Personal music searching and streaming app.
 
 **Features** search and play from youtube or URL.
 
-**Needs** a play queue.
+**Needs** a search on Bandcamp and a play queue.
 
 ![Demo](docs/yt-audio.gif)
 
 
 ## Installation
 
-YT Audio is a wrapper around yt-dlp. You need to run the server-side API before you can use the front-end UI.
+YT Audio uses an API wrapped around [`yt-dlp`](https://github.com/yt-dlp/yt-dlp). You need to run the server-side API before you can use the front-end UI in the browser.
 
 1. **Clone** the code
 
