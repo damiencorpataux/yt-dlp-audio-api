@@ -77,6 +77,7 @@
 
     .progress {
       height: 10px;
+      border-radius: 4px;
       background: #222;
       position: relative;
       cursor: pointer;
@@ -133,8 +134,8 @@
       <div id="bufferedBar" class="buffered"></div>
       <div id="playedBar" class="played"></div>
     </div>
-   <span style="margin-left:2%">🔊</span>
-    <input style="width:8%" type="range" id="volume" min="0" max="1" step="0.01" value="1">
+   <span style="margin-left:1%">🚲</span>
+    <input style="width:8%" type="range" id="speed" min="0.125" max="2" step="0.001" value="1">
 
   </div>
 
@@ -156,13 +157,20 @@ const ui = {
   results: document.getElementById("results"),
   trackname: document.getElementById("trackname"),
   time: document.getElementById("time"),
-  volume: document.getElementById("volume"),
+  speed: document.getElementById("speed"),
   playedBar: document.getElementById("playedBar"),
   bufferedBar: document.getElementById("bufferedBar"),
   progressBar: document.getElementById("progressBar")
 };
 
 let lastBuffered = 0;
+
+function formatTime(t) {
+  if (isNaN(t)) return "0:00";
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
 
 function escapeHTML(str) {
   const div = document.createElement('div');
@@ -197,7 +205,7 @@ async function search() {
     console.error(e);
     alert(`❌ Search failed. Please try again.\n\n${String(e)}`);
     ui.results.innerHTML = '';
-    return;
+    throw(e);
   } finally {
     ui.search.parentNode.querySelector("button").disabled = false;
     ui.search.blur();
@@ -239,10 +247,9 @@ async function play(url) {
     ui.audio.src = `${API}/stream?url=${encodeURIComponent(url)}`;
     await ui.audio.play();
   } catch(e) {
-    console.error(e);
-    alert(`❌ Play failed. Please try again.\n\n${String(e)}`);
+    alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
     ui.trackname.innerHTML = '';
-    return;
+    throw(e);
   }
 
   // Display title
@@ -256,33 +263,28 @@ function togglePlay() {
   else ui.audio.pause();
 }
 
-ui.volume.oninput = () => {
-  ui.audio.volume = ui.volume.value;
+ui.speed.ondblclick = () => {
+  ui.audio.playbackRate = ui.speed.value = 1;  // Reset playback speed
+  console.debug('Reset speed', ui.audio.playbackRate);
 };
-ui.volume.dispatchEvent(new Event('change'));  // Apply volume on page load
-
-/* ---------------- TIME ---------------- */
-
-function formatTime(t) {
-  if (isNaN(t)) return "0:00";
-  const m = Math.floor(t / 60);
-  const s = Math.floor(t % 60).toString().padStart(2, "0");
-  return `${m}:${s}`;
-}
+ui.speed.oninput = () => {
+  ui.audio.playbackRate = ui.speed.value;
+  console.debug('Set speed', ui.audio.playbackRate);
+};
+ui.speed.dispatchEvent(new Event('input'));  // Apply speed on page load
 
 ui.audio.addEventListener("timeupdate", () => {
   const current = ui.audio.currentTime;
   const duration = ui.audio.duration;
 
-  ui.time.textContent =
-    `${formatTime(current)}/${formatTime(duration)}`;
+  ui.time.textContent = `${formatTime(current)}/${formatTime(duration)}`;
 
   if (duration > 0) {
     ui.playedBar.style.width = (current / duration * 100) + "%";
   }
 });
 
-/* ---------------- BUFFER ---------------- */
+/* -------------- BUFFER BAR -------------- */
 
 ui.audio.addEventListener("progress", () => {
   try {
