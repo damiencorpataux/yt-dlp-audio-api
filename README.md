@@ -9,7 +9,7 @@ Personal youtube search and streaming app.
 ![Demo](docs/yt-audio.gif)
 
 
-### Installation
+## Installation
 
 YT Audio is a wrapper around yt-dlp. You need to run the server-side API before you can use the front-end UI.
 
@@ -39,10 +39,10 @@ YT Audio is a wrapper around yt-dlp. You need to run the server-side API before 
     Visit http://localhost:8000 if you installed YT Audio on your local computer
     or use the IP/hostname of the server you installed it on.
 
-    Be careful to not expose que API to the public
+    ⚠️ Be careful to not expose que API to the public
     because requests to YouTube are made from your IP address.
 
 
-### Documentation
+## Documentation
 
 API Routes: http://localhost:8000/docs
