@@ -46,6 +46,10 @@
       border-radius: 4px;
     }
 
+    p {
+      margin-top: 0;
+    }
+
     /* Utiliy classes */
 
     .row {
@@ -71,7 +75,7 @@
       align-items: flex-start;
       gap: 18px;
     }
-    #results .result-item img {
+    #results .result-item img.thumbnail {
       width: 120px;
     }
 
@@ -220,14 +224,23 @@ async function search() {
     div.className = "row result-item";
 
     div.innerHTML = `
-      <img src="${r.thumbnail}">
+      <img class="thumbnail" src="${r.thumbnail}">
       <div style="flex:1;">
-        <div><strong>${escapeHTML(r.title)}</strong></div>
-        <br>
-        <div>${formatTime(r.duration, '-')}</div>
-        <div>${escapeHTML(r.channel)} <span style="color:gray">[${escapeHTML(r.source)}]</span></div>
+        <p><strong>${escapeHTML(r.title)}</strong></p>
+        <p>${formatTime(r.duration, '-')}</p>
+        <p>
+          <img width="16px" alt="${r.provider}" src="${
+            {
+              'bandcamp': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Bandcamp-button-bc-circle-green.svg/960px-Bandcamp-button-bc-circle-green.svg.png',
+              'youtube': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1280px-YouTube_full-color_icon_%282024%29.svg.png'
+            }[r.provider] || 'default_url'
+          }">
+          ${escapeHTML(r.channel)}
+        </p>
       </div>
-      <div><button>▶︎ Play</button></div>
+      <div>
+        <button>▶︎ Play</button>
+      </div>
     `;
 
     div.querySelector("button").onclick = () => play(r.url);
