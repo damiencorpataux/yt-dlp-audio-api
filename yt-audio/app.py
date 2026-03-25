@@ -17,19 +17,11 @@ def run_search(query: str):
         result = ydl.extract_info(f"ytsearch10:{query}", download=False)
 
     return [
-        {
-            "id": e.get("id"),
-            "title": e.get("title"),
-            "duration": e.get("duration"),
-            "url": f"https://youtube.com/watch?v={e.get('id')}",
-            "description": e.get("description"),
-            "channel": e.get("channel"),
-            "thumbnail": e.get("thumbnails", [{}])[0].get("url"),
-        }
-        for e in result.get("entries", [])
+        strip_info(info)
+        for info in result.get("entries", [])
     ]
 
-def get_audio_info(url: str):
+def get_audio_info(url: str, nostrip: bool = True):
     ydl_opts = {
         "format": "bestaudio/best",
         "quiet": True,
@@ -37,7 +29,8 @@ def get_audio_info(url: str):
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        return ydl.extract_info(url, download=False)
+        info = ydl.extract_info(url, download=False)
+        return info if nostrip else strip_info(info)
 
 def resolve_filesize(info, stream_url):
     # 1. Best: exact filesize from yt-dlp
@@ -58,10 +51,24 @@ def resolve_filesize(info, stream_url):
 
     return None
 
+def strip_info(info):
+    return {
+        "id": info.get("id"),
+        "title": info.get("title"),
+        "duration": info.get("duration"),
+        "url": info.get("url"),
+        "description": info.get("description"),
+        "channel": info.get("channel"),
+        "thumbnail": info.get("thumbnails", [{}])[0].get("url"),
+    }
+
 
 # API
 
-app = FastAPI()
+app = FastAPI(
+    title="YT Audio API",
+    summary="A minimalistic API yt-dlp (audio only)"
+)
 
 @app.get("/")
 async def index():
@@ -70,6 +77,13 @@ async def index():
 @app.get("/search")
 def search(q: str):
     return {"results": run_search(q)}
+
+@app.get("/info")
+def info(url: str):
+    try:
+        return get_audio_info(url)
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 @app.get("/stream")
 def stream(url: str):

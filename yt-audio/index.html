@@ -12,14 +12,10 @@
     /* Global styling */
 
     body {
-      background: #0f1115;
+      background: #111;
       color: #e6e6e6;
       font-family: system-ui, -apple-system, sans-serif;
       padding: 20px;
-    }
-
-    h1 {
-      font-size: 24px;
     }
 
     hr {
@@ -33,11 +29,12 @@
       background: #1a1d24;
       color: #e6e6e6;
       border: 1px solid #333;
+      border-radius: 4px;
       padding: 6px;
     }
 
-    button {
-      border-radius: 4px;
+    button:active {
+      background-color: darkred;
     }
 
     a {
@@ -87,7 +84,7 @@
     .progress .buffered {
       position: absolute;
       height: 100%;
-      background: #555;
+      background: #444;
       width: 0%;
     }
     .progress .played {
@@ -101,10 +98,10 @@
 
 <body>
 <div class="app">
-  <div class="row">
-    <h1 style="flex:1">
-      <span style="background-color:darkred; border-radius:999px; padding:8px; margin:0 10px">🎧</span>
-      YT Audio
+  <div class="row" style="align-items:center">
+    <h1 style="font-size: 24px; color: gray; margin-top:0">
+      <span style="background-color:darkred; border-radius:999px; padding:8px">🎧</span>
+      <span>YT Audio</span>
     </h1>
     <!--
     <div>
@@ -118,23 +115,26 @@
 
   <!-- SEARCH -->
   <form class="row" onsubmit="search(); return false;">
-    <input id="searchInput" autofocus placeholder="Search or paste URL" style="flex:1">
+    <input id="searchInput" autofocus placeholder="♪ Search or paste URL" style="flex:1">
     <button>Search</button>
   </form>
 
   <hr>
 
   <!-- PLAYER -->
+  <div style="margin-bottom:10px; min-height:1lh">
+    <strong id="trackname"></strong>
+  </div>
   <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
 
     <button onclick="togglePlay()">▶︎ / ⏸︎</button>
-    <span id="time" style="font-family:monospace">0:00 / 0:00</span>
+    <span id="time" style="font-family:monospace">0:00/0:00</span>
     <div id="progressBar" class="progress" style="flex:1">
       <div id="bufferedBar" class="buffered"></div>
       <div id="playedBar" class="played"></div>
     </div>
-   <span style="margin-left:16px">🔊</span>
-    <input style="width:50px" type="range" id="volume" min="0" max="1" step="0.01" value="1">
+   <span style="margin-left:2%">🔊</span>
+    <input style="width:8%" type="range" id="volume" min="0" max="1" step="0.01" value="1">
 
   </div>
 
@@ -142,7 +142,6 @@
 
   <!-- RESULTS -->
   <div id="results">
-    🎵 Please search for some music.
   </div>
 
   <audio id="audio"></audio>
@@ -155,6 +154,7 @@ const ui = {
   audio: document.getElementById("audio"),
   search: document.getElementById("searchInput"),
   results: document.getElementById("results"),
+  trackname: document.getElementById("trackname"),
   time: document.getElementById("time"),
   volume: document.getElementById("volume"),
   playedBar: document.getElementById("playedBar"),
@@ -163,6 +163,12 @@ const ui = {
 };
 
 let lastBuffered = 0;
+
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.textContent;
+}
 
 /* ---------------- SEARCH ---------------- */
 
@@ -175,13 +181,13 @@ async function search() {
 
   // 🔥 Direct play if URL
   if (isURL(q)) {
-    ui.results.innerHTML = `🎶 Playing <strong>${q}</strong>...`;
+    ui.results.innerHTML = `🎶 Playing <q>${q}</q>...`;
     play(q);
     return;
   }
 
   ui.search.parentNode.querySelector("button").disabled = true;
-  ui.results.innerHTML = `🎶 Searching for <strong>${q}</strong>...`;
+  ui.results.innerHTML = `🎶 Searching for <q>${escapeHTML(q)}</q>...`;
 
   let data;
   try {
@@ -206,10 +212,10 @@ async function search() {
     div.innerHTML = `
       <img src="${r.thumbnail}">
       <div style="flex:1;">
-        <div><strong>${r.title}</strong></div>
+        <div><strong>${escapeHTML(r.title)}</strong></div>
         <br>
         <div>${formatTime(r.duration)}</div>
-        <div>${r.channel}</div>
+        <div>${escapeHTML(r.channel)}</div>
       </div>
       <div><button>▶︎ Play</button></div>
     `;
@@ -222,10 +228,25 @@ async function search() {
 
 /* ---------------- PLAYER ---------------- */
 
-function play(url) {
-  // FIXME: Display alert on play fail.
-  ui.audio.src = `${API}/stream?url=${encodeURIComponent(url)}`;
-  ui.audio.play();
+async function play(url) {
+
+  ui.trackname.innerHTML = '♪ Loading track...'
+  window.scrollTo({top: 0, behavior: 'smooth'});
+
+  // Play URL
+  try {
+    ui.audio.src = `${API}/stream?url=${encodeURIComponent(url)}`;
+    await ui.audio.play();
+  } catch(e) {
+    alert("❌ Play failed. Please try again.");
+    ui.trackname.innerHTML = '';
+    return;
+  }
+
+  // Display title
+  const res = await fetch(`${API}/info?url=${encodeURIComponent(url)}`);
+  data = await res.json();
+  ui.trackname.innerHTML = escapeHTML(data.title || 'Unknown');
 }
 
 function togglePlay() {
@@ -252,7 +273,7 @@ ui.audio.addEventListener("timeupdate", () => {
   const duration = ui.audio.duration;
 
   ui.time.textContent =
-    `${formatTime(current)} / ${formatTime(duration)}`;
+    `${formatTime(current)}/${formatTime(duration)}`;
 
   if (duration > 0) {
     ui.playedBar.style.width = (current / duration * 100) + "%";
@@ -272,7 +293,7 @@ ui.audio.addEventListener("progress", () => {
       ui.bufferedBar.style.width = percent + "%";
     }
   } catch (e) {
-    console.log("Loading: unknown", e);
+    console.warn("Loading: unknown", e);
   }
 });
 
