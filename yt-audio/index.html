@@ -165,8 +165,9 @@ const ui = {
 
 let lastBuffered = 0;
 
-function formatTime(t) {
-  if (isNaN(t)) return "0:00";
+function formatTime(t, fallback) {
+  fallback = fallback || '?:??';
+  if (isNaN(t) || t == null) return fallback;
   const m = Math.floor(t / 60);
   const s = Math.floor(t % 60).toString().padStart(2, "0");
   return `${m}:${s}`;
@@ -204,7 +205,7 @@ async function search() {
   } catch(e) {
     console.error(e);
     alert(`❌ Search failed. Please try again.\n\n${String(e)}`);
-    ui.results.innerHTML = '';
+    ui.results.innerHTML = "";
     throw(e);
   } finally {
     ui.search.parentNode.querySelector("button").disabled = false;
@@ -223,8 +224,8 @@ async function search() {
       <div style="flex:1;">
         <div><strong>${escapeHTML(r.title)}</strong></div>
         <br>
-        <div>${formatTime(r.duration)}</div>
-        <div>${escapeHTML(r.channel)}</div>
+        <div>${formatTime(r.duration, '-')}</div>
+        <div>${escapeHTML(r.channel)} <span style="color:gray">[${escapeHTML(r.source)}]</span></div>
       </div>
       <div><button>▶︎ Play</button></div>
     `;

@@ -2,9 +2,9 @@
 
 Personal music searching and streaming app.
 
-**Features** search and play from youtube or URL.
+**Features** search and play from Bandcamp, YouTube or URL.
 
-**Needs** a search on Bandcamp and a play queue.
+**Needs** and a play queue.
 
 ![Demo](docs/yt-audio.gif)
 
@@ -40,7 +40,7 @@ YT Audio uses an API wrapped around [`yt-dlp`](https://github.com/yt-dlp/yt-dlp)
     or use the IP/hostname of the server you installed it on.
 
     ⚠️ Be careful to not expose que API to the public
-    because requests to YouTube are made from your IP address.
+    because requests to music providers (Bandcamp, YouTube) are made from your IP address.
 
 
 ## Documentation
