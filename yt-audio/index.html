@@ -11,6 +11,12 @@
 
     /* Global styling */
 
+    :root {
+      --player-canplay: #4da3ff;
+      --player-waiting: darkorange;
+      --player-stalled: darkred;
+    }
+
     html, body {
       overscroll-behavior: none;
     }
@@ -112,7 +118,7 @@
     .progress .played {
       position: absolute;
       height: 100%;
-      background: #4da3ff;
+      background: var(--player-canplay);
       width: 0%;
     }
   </style>
@@ -282,7 +288,7 @@ async function play(url) {
 
   // Play direct URL
   try {
-    console.debug('Playing direct URL', info.acodec, info.url);
+    console.debug(`Playing direct stream URL (${info.acodec})`, info.url);
     ui.audio.src = info.url;
     await ui.audio.play();
     return;
@@ -292,8 +298,9 @@ async function play(url) {
 
   // Play fallback proxy URL (mp3 transcoded)
   try {
-    console.log('Playing fallback proxy URL', url);
-    ui.audio.src = `${API_URL}/stream/mp3?url=${encodeURIComponent(url)}`;
+    const proxy_url = `${API_URL}/stream/mp3?url=${encodeURIComponent(url)}`;
+    console.log('Playing fallback proxy URL (mp3)', proxy_url);
+    ui.audio.src = proxy_url;
     await ui.audio.play();
   } catch(e) {
     alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
@@ -388,6 +395,12 @@ document.addEventListener("keydown", (e) => {
   if (preventDefault) e.preventDefault();
   if (preventDefault) console.log('Hotkey prevented default')
 });
+
+// Play button color indicator
+var style = window.getComputedStyle(document.body);
+ui.audio.addEventListener("canplay", () => ui.play.style.borderColor = style.getPropertyValue("--player-canplay"));
+ui.audio.addEventListener("waiting", () => ui.play.style.borderColor = style.getPropertyValue("--player-waiting"));
+ui.audio.addEventListener("stalled", () => ui.play.style.borderColor = style.getPropertyValue("--player-stalled"));
 
 // Debug
 ui.audio.addEventListener("loadstart", () => console.log("loadstart"));
