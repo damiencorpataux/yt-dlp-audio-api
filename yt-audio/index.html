@@ -303,13 +303,17 @@ async function play(url) {
 }
 
 // Toggle play/pause
-ui.play.addEventListener("click", () => {
+function playToggle() {
+
+  if (ui.play.disabled) return;
+
   if (ui.audio.paused) {
     ui.audio.play();
   } else {
     ui.audio.pause();
   }
-});
+}
+ui.play.addEventListener("click", playToggle);
 
 // Update playback time & progress bar
 ui.audio.addEventListener("timeupdate", () => {
@@ -345,6 +349,7 @@ ui.audio.addEventListener("pause", () => playEnable(true));
 
 // Track duration progress bar
 ui.audio.addEventListener("progress", () => {
+  // FIXME: Display seems broken.
   const duration = get_duration();
   if (ui.audio.buffered.length > 0 && duration > 0) {
 
@@ -367,6 +372,22 @@ function handleSeek(clientX) {
 }
 ui.progressBar.addEventListener("click", (e) => handleSeek(e.clientX));  // Desktop
 ui.progressBar.addEventListener("touchstart", (e) => handleSeek(e.touches[0].clientX));  // Mobile
+
+/* ---------------- HOTKEYS ---------------- */
+
+document.addEventListener("keydown", (e) => {
+  
+  if (["INPUT", "BUTTON"].includes(e.target.tagName)) return;
+
+  let preventDefault = true;
+  if      (e.code == "Space")      playToggle();
+  else if (e.code == "ArrowRight") ui.audio.currentTime += 5;
+  else if (e.code == "ArrowLeft")  ui.audio.currentTime -= 5;
+  else preventDefault = false;
+
+  if (preventDefault) e.preventDefault();
+  if (preventDefault) console.log('Hotkey prevented default')
+});
 
 // Debug
 ui.audio.addEventListener("loadstart", () => console.log("loadstart"));
