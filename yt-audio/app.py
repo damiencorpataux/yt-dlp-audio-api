@@ -5,8 +5,6 @@ from bs4 import BeautifulSoup
 import requests
 import re
 
-# Helpers
-
 def run_search(query: str):
     try: bandcamp = search_bandcamp(query)
     except: bandcamp = []
@@ -14,6 +12,7 @@ def run_search(query: str):
     try: youtube = search_youtube(query)
     except: youtube = []
 
+    # Add provider key
     return [
         *[{**result, **{"provider": "bandcamp"}} for result in bandcamp],
         *[{**result, **{"provider": "youtube"}} for result in youtube]
@@ -57,12 +56,11 @@ def search_youtube(query: str):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         result = ydl.extract_info(f"ytsearch10:{query}", download=False)
 
-    return [
-        strip_info(info)
-        for info in result.get("entries", [])
-    ]
+    return [strip_ytdlp_info(info) for info in result.get("entries", [])]
 
-def get_audio_info(url: str, nostrip: bool = True):
+# Helpers
+
+def get_audio_info(url: str, nostrip: bool = False):
     ydl_opts = {
         "format": "bestaudio/best",
         "quiet": True,
@@ -71,19 +69,19 @@ def get_audio_info(url: str, nostrip: bool = True):
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
-        return info if nostrip else strip_info(info)
+        return info if nostrip else strip_ytdlp_info(info)
 
-def strip_info(info):
+def strip_ytdlp_info(info):
+    print(type(info), info)
     return {
-        # "id": info.get("id"),
         "title": info.get("title"),
         "duration": info.get("duration"),
-        "url": info.get("url"),
         "description": info.get("description"),
         "channel": info.get("channel"),
-        "thumbnail": info.get("thumbnails", [{}])[0].get("url"),
+        "thumbnail": info.get("thumbnails", [{}])[0].get("url"),  # FIXME: A smart way to select sensible-sized thumnail ?
+        "url": info.get("url"),
+        "acodec": info.get("acodec")
     }
-
 
 # API
 
@@ -101,14 +99,17 @@ def search(q: str):
     return {"results": run_search(q)}
 
 @app.get("/info")
-def info(url: str):
+def info(url: str, nostrip: bool = False):
     try:
-        return get_audio_info(url)
+        return get_audio_info(url, nostrip)
     except Exception as e:
         raise HTTPException(500, str(e))
 
 @app.get("/stream")
 def stream(request: Request, url: str):
+    """
+    Stream audio, with range support.
+    """
     try:
         info = get_audio_info(url)
     except Exception as e:
@@ -148,4 +149,58 @@ def stream(request: Request, url: str):
         status_code=r.status_code,  # 🔥 CRITICAL (200 vs 206)
         headers=response_headers,
         media_type=r.headers.get("Content-Type", "audio/mpeg"),
+    )
+
+import subprocess
+
+@app.get("/stream/mp3")
+def stream_mp3(request: Request, url: str):
+    """
+    Stream audio transcoded to mp3, without range support.
+    """
+    try:
+        info = get_audio_info(url)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+    stream_url = info["url"]
+    title = info.get("title", "audio")
+
+    process = subprocess.Popen(
+        [
+            "ffmpeg",
+            "-i", stream_url,
+            "-vn",
+            "-f", "mp3",
+            "-acodec", "libmp3lame",
+            "-ab", "192k",
+            "-",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        bufsize=10**6,
+    )
+
+    def iter_stream():
+        try:
+            while True:
+                chunk = process.stdout.read(1024 * 64)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            process.kill()
+
+    headers = {
+        "Content-Disposition": f'inline; filename="{title}.mp3"',
+        "Content-Type": "audio/mpeg",
+        # ❗ no Content-Length
+        # ❗ no Content-Range
+    }
+
+    return StreamingResponse(
+        iter_stream(),
+        status_code=200,
+        headers=headers,
+        media_type="audio/mpeg",
     )
