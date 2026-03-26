@@ -267,9 +267,10 @@ async function search() {
 async function play(url) {
   ui.trackname.innerHTML = '♪ Loading track...'
   window.scrollTo({top: 0, behavior: 'smooth'});
+  console.debug('Playing URL', url);
   // Play URL
   try {
-    ui.audio.src = `${API_URL}/stream?url=${encodeURIComponent(url)}`;
+    ui.audio.src = `${API_URL}/stream/mp3?url=${encodeURIComponent(url)}`;
     await ui.audio.play();  // FIXME: make async
   } catch(e) {
     alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);

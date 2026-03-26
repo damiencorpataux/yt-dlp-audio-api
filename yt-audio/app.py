@@ -109,6 +109,9 @@ def info(url: str):
 
 @app.get("/stream")
 def stream(request: Request, url: str):
+    """
+    Stream audio, with range support.
+    """
     try:
         info = get_audio_info(url)
     except Exception as e:
@@ -148,4 +151,58 @@ def stream(request: Request, url: str):
         status_code=r.status_code,  # 🔥 CRITICAL (200 vs 206)
         headers=response_headers,
         media_type=r.headers.get("Content-Type", "audio/mpeg"),
+    )
+
+import subprocess
+
+@app.get("/stream/mp3")
+def stream_mp3(request: Request, url: str):
+    """
+    Stream audio transcoded to mp3, without range support.
+    """
+    try:
+        info = get_audio_info(url)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+    stream_url = info["url"]
+    title = info.get("title", "audio")
+
+    process = subprocess.Popen(
+        [
+            "ffmpeg",
+            "-i", stream_url,
+            "-vn",
+            "-f", "mp3",
+            "-acodec", "libmp3lame",
+            "-ab", "192k",
+            "-",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        bufsize=10**6,
+    )
+
+    def iter_stream():
+        try:
+            while True:
+                chunk = process.stdout.read(1024 * 64)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            process.kill()
+
+    headers = {
+        "Content-Disposition": f'inline; filename="{title}.mp3"',
+        "Content-Type": "audio/mpeg",
+        # ❗ no Content-Length
+        # ❗ no Content-Range
+    }
+
+    return StreamingResponse(
+        iter_stream(),
+        status_code=200,
+        headers=headers,
+        media_type="audio/mpeg",
     )
