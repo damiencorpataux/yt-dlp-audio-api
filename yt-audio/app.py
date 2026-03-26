@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse, FileResponse
 import yt_dlp
 from bs4 import BeautifulSoup
@@ -73,25 +73,6 @@ def get_audio_info(url: str, nostrip: bool = True):
         info = ydl.extract_info(url, download=False)
         return info if nostrip else strip_info(info)
 
-def resolve_filesize(info, stream_url):
-    # 1. Best: exact filesize from yt-dlp
-    if info.get("filesize"):
-        return info["filesize"]
-
-    # 2. Optional: approximate (you can disable this if you want strict correctness)
-    if info.get("filesize_approx"):
-        return info["filesize_approx"]
-
-    # 3. Fallback: HEAD request
-    try:
-        r = requests.head(stream_url, allow_redirects=True, timeout=5)
-        if "Content-Length" in r.headers:
-            return int(r.headers["Content-Length"])
-    except Exception:
-        pass
-
-    return None
-
 def strip_info(info):
     return {
         # "id": info.get("id"),
@@ -127,7 +108,7 @@ def info(url: str):
         raise HTTPException(500, str(e))
 
 @app.get("/stream")
-def stream(url: str):
+def stream(request: Request, url: str):
     try:
         info = get_audio_info(url)
     except Exception as e:
@@ -135,26 +116,36 @@ def stream(url: str):
 
     stream_url = info["url"]
     title = info.get("title", "audio")
-    filesize = resolve_filesize(info, stream_url)
 
-    r = requests.get(stream_url, stream=True)
+    # Forward Range header if present
+    headers = {}
+    range_header = request.headers.get("range")
+    if range_header:
+        headers["Range"] = range_header
 
-    if r.status_code != 200:
-        raise HTTPException(500, "Failed to fetch stream")
+    r = requests.get(stream_url, headers=headers, stream=True)
+
+    if r.status_code not in (200, 206):
+        raise HTTPException(500, f"Upstream error: {r.status_code}")
 
     def iter_stream():
         for chunk in r.iter_content(chunk_size=1024 * 64):
             if chunk:
                 yield chunk
 
-    headers = {
+    response_headers = {
         "Content-Disposition": f'attachment; filename="{title}"',
+        "Accept-Ranges": "bytes",
     }
-    if filesize:
-        headers["Content-Length"] = str(filesize)
+
+    # Forward critical headers from upstream
+    for h in ["Content-Length", "Content-Range", "Content-Type"]:
+        if h in r.headers:
+            response_headers[h] = r.headers[h]
 
     return StreamingResponse(
         iter_stream(),
-        media_type="audio/mpeg",
-        headers=headers
+        status_code=r.status_code,  # 🔥 CRITICAL (200 vs 206)
+        headers=response_headers,
+        media_type=r.headers.get("Content-Type", "audio/mpeg"),
     )
