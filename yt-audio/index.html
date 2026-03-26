@@ -144,7 +144,7 @@
     <strong id="trackname"></strong>
   </div>
   <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
-    <button onclick="togglePlay()">▶︎ / ⏸︎</button>
+    <button id="play" style="width:32px">⌛</button>
     <span id="time" style="font-family:monospace">0:00/0:00</span>
     <div id="progressBar" class="progress" style="flex:1">
       <div id="bufferedBar" class="buffered"></div>
@@ -162,20 +162,19 @@
 </div>
 
 <script>
-const API = "";
+const API_URL = "";
 
 const ui = {
   audio: document.getElementById("audio"),
   search: document.getElementById("searchInput"),
   results: document.getElementById("results"),
   trackname: document.getElementById("trackname"),
+  play: document.getElementById("play"),
   time: document.getElementById("time"),
   playedBar: document.getElementById("playedBar"),
   bufferedBar: document.getElementById("bufferedBar"),
   progressBar: document.getElementById("progressBar")
 };
-
-let lastBuffered = 0;
 
 function formatTime(t, fallback) {
   fallback = fallback || '?:??';
@@ -212,7 +211,7 @@ async function search() {
 
   let data;
   try {
-    const res = await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
+    const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`);
     data = await res.json();
   } catch(e) {
     alert(`❌ Search failed. Please try again.\n\n${String(e)}`);
@@ -260,34 +259,36 @@ async function search() {
 
 /* ---------------- PLAYER ---------------- */
 
+// Play URL
 async function play(url) {
-
   ui.trackname.innerHTML = '♪ Loading track...'
   window.scrollTo({top: 0, behavior: 'smooth'});
-
   // Play URL
   try {
-    ui.audio.src = `${API}/stream?url=${encodeURIComponent(url)}`;
-    await ui.audio.play();
+    ui.audio.src = `${API_URL}/stream?url=${encodeURIComponent(url)}`;
+    await ui.audio.play();  // FIXME: make async
   } catch(e) {
     alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
     ui.trackname.innerHTML = '';
     throw(e);
   }
-
   // Display title
-  const res = await fetch(`${API}/info?url=${encodeURIComponent(url)}`);
+  const res = await fetch(`${API_URL}/info?url=${encodeURIComponent(url)}`);  // FIXME: make async
   data = await res.json();
   ui.trackname.innerHTML = escapeHTML(data.title || 'Unknown');
 }
 
-function togglePlay() {
-  if (ui.audio.paused) ui.audio.play();
-  else ui.audio.pause();
-}
+// Toggle play/pause
+ui.play.addEventListener("click", () => {
+  if (ui.audio.paused) {
+    ui.audio.play();
+  } else {
+    ui.audio.pause();
+  }
+});
 
+// Update playback time
 ui.audio.addEventListener("timeupdate", () => {
-  // Update playback time
   const current = ui.audio.currentTime;
   const duration = ui.audio.duration;
 
@@ -298,45 +299,54 @@ ui.audio.addEventListener("timeupdate", () => {
   }
 });
 
-/* -------------- BUFFER BAR -------------- */
+// Handle play button enable/disable state and icon
+function playEnable(enable) {
+  if (enable === null) enable = true;
+  if (enable) {
+    const icon = ui.audio.paused ? "⏸︎" : "▶︎";
+    ui.play.innerHTML = icon;
+    ui.play.disabled = false;
+  } else {
+    ui.play.innerHTML = "⌛";
+    ui.play.disabled = true;
+  }
+}
+playEnable(false);  // Start disabled
+ui.audio.addEventListener("canplay", () => playEnable(true));
+ui.audio.addEventListener("loadstart", () => playEnable(false));
+ui.audio.addEventListener("waiting", () => playEnable(false));
+ui.audio.addEventListener("stalled", () => playEnable(false));
+ui.audio.addEventListener("play", () => playEnable(true));
+ui.audio.addEventListener("pause", () => playEnable(true));
 
+// Track duration progress bar
 ui.audio.addEventListener("progress", () => {
   if (ui.audio.buffered.length > 0 && ui.audio.duration > 0) {
 
     const bufferedEnd = ui.audio.buffered.end(ui.audio.buffered.length - 1);
-    lastBuffered = bufferedEnd;
 
     const percent = (bufferedEnd / ui.audio.duration) * 100;
     ui.bufferedBar.style.width = percent + "%";
   }
 });
 
-/* ---------------- SEEK ---------------- */
-
+// Track seeking on progress bar
 function handleSeek(clientX) {
   if (!ui.audio.duration) return;
-
   const rect = ui.progressBar.getBoundingClientRect();
   const ratio = (clientX - rect.left) / rect.width;
-
   const targetTime = ratio * ui.audio.duration;
   ui.audio.currentTime = targetTime;
 }
+ui.progressBar.addEventListener("click", (e) => handleSeek(e.clientX));  // Desktop
+ui.progressBar.addEventListener("touchstart", (e) => handleSeek(e.touches[0].clientX));  // Mobile
 
-// Desktop
-ui.progressBar.addEventListener("click", (e) => {
-  handleSeek(e.clientX);
-});
-
-// Mobile
-ui.progressBar.addEventListener("touchstart", (e) => {
-  handleSeek(e.touches[0].clientX);
-});
-
-/* Debug */
+// Debug
 ui.audio.addEventListener("loadstart", () => console.log("loadstart"));
 ui.audio.addEventListener("loadedmetadata", () => console.log("metadata loaded"));
 ui.audio.addEventListener("canplay", () => console.log("can play"));
+ui.audio.addEventListener("waiting", () => console.log("waiting"));
+ui.audio.addEventListener("stalled", () => console.log("stalled"));
 
 </script>
 
