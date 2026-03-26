@@ -75,8 +75,21 @@
       align-items: flex-start;
       gap: 18px;
     }
+    #results .result-item:hover img {
+      filter: brightness(0.7);
+    }
     #results .result-item img.thumbnail {
       width: 120px;
+    }
+    #results .result-item button {
+      opacity: .75;
+    }
+    #results .result-item button {
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: darkred;
     }
 
     .progress {
@@ -105,7 +118,7 @@
 <div class="app">
   <div class="row" style="align-items:center">
     <h1 style="font-size: 24px; color: gray; margin-top:0">
-      <span style="background-color:darkred; border-radius:999px; padding:8px">🎧</span>
+      <span>🎧</span>
       <span>YT Audio</span>
     </h1>
     <!--
@@ -224,7 +237,12 @@ async function search() {
     div.className = "row result-item";
 
     div.innerHTML = `
-      <img class="thumbnail" src="${r.thumbnail}">
+      <div style="position:relative; display:inline-block;">
+        <img class="thumbnail" src="${r.thumbnail}" style="display:block">
+        <button style="position:absolute; bottom:2px; right:2px">
+          ▶︎
+        </button>
+      </div>
       <div style="flex:1;">
         <p><strong>${escapeHTML(r.title)}</strong></p>
         <p>${formatTime(r.duration, '-')}</p>
@@ -237,9 +255,6 @@ async function search() {
           }">
           ${escapeHTML(r.channel)}
         </p>
-      </div>
-      <div>
-        <button>▶︎ Play</button>
       </div>
     `;
 
