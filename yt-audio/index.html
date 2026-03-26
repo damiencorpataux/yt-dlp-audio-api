@@ -202,6 +202,7 @@ function isURL(str) {
 
 async function search() {
   const q = ui.search.value.trim();
+  if (q.length < 1) return;
 
   // 🔥 Direct play if URL
   if (isURL(q)) {
@@ -267,20 +268,31 @@ async function search() {
 async function play(url) {
   ui.trackname.innerHTML = '♪ Loading track...'
   window.scrollTo({top: 0, behavior: 'smooth'});
-  console.debug('Playing URL', url);
-  // Play URL
+
+  // Play direct URL
   try {
+    console.debug('Loading info for URL', url);
+    const info_res = await fetch(`${API_URL}/info?url=${encodeURIComponent(url)}`)
+    const info = await info_res.json();
+    console.debug('Playing direct URL', info.acodec, info.url);
+    ui.trackname.innerHTML = escapeHTML(info.title || 'Unknown');
+    ui.audio.src = info.url;
+    await ui.audio.play();
+    return;
+  } catch(e) {
+    console.log('Failed to play direct URL', e);
+  }
+
+  // Play fallback proxy URL (mp3 transcoded)
+  try {
+    console.log('Playing fallback proxy URL', url);
     ui.audio.src = `${API_URL}/stream/mp3?url=${encodeURIComponent(url)}`;
-    await ui.audio.play();  // FIXME: make async
+    await ui.audio.play();
   } catch(e) {
     alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
     ui.trackname.innerHTML = '';
     throw(e);
   }
-  // Display title
-  const res = await fetch(`${API_URL}/info?url=${encodeURIComponent(url)}`);  // FIXME: make async
-  data = await res.json();
-  ui.trackname.innerHTML = escapeHTML(data.title || 'Unknown');
 }
 
 // Toggle play/pause
