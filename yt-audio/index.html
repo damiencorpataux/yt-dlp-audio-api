@@ -181,8 +181,7 @@ const ui = {
 };
 
 function formatTime(t, fallback) {
-  fallback = fallback || '?:??';
-  if (isNaN(t) || t == null) return fallback;
+  if (!isFinite(t) || t == null) return fallback || '?:??';
   const m = Math.floor(t / 60);
   const s = Math.floor(t % 60).toString().padStart(2, "0");
   return `${m}:${s}`;
@@ -264,18 +263,26 @@ async function search() {
 
 /* ---------------- PLAYER ---------------- */
 
+// NOTE: In Chrome, ui.audio.duration is Infinity without Content-Length, ie. when using route /stream/mp3.
+let current_track_info = {};
+function get_duration() {
+  return isFinite(ui.audio.duration) ? ui.audio.duration : current_track_info.duration;
+}
+
 // Play URL
 async function play(url) {
   ui.trackname.innerHTML = '♪ Loading track...'
   window.scrollTo({top: 0, behavior: 'smooth'});
 
+  console.debug('Loading info for URL', url);
+  const info_res = await fetch(`${API_URL}/info?url=${encodeURIComponent(url)}`)
+  const info = await info_res.json();
+  current_track_info = info;
+  ui.trackname.innerHTML = escapeHTML(info.title || 'Unknown');
+
   // Play direct URL
   try {
-    console.debug('Loading info for URL', url);
-    const info_res = await fetch(`${API_URL}/info?url=${encodeURIComponent(url)}`)
-    const info = await info_res.json();
     console.debug('Playing direct URL', info.acodec, info.url);
-    ui.trackname.innerHTML = escapeHTML(info.title || 'Unknown');
     ui.audio.src = info.url;
     await ui.audio.play();
     return;
@@ -304,14 +311,13 @@ ui.play.addEventListener("click", () => {
   }
 });
 
-// Update playback time
+// Update playback time & progress bar
 ui.audio.addEventListener("timeupdate", () => {
   const current = ui.audio.currentTime;
-  const duration = ui.audio.duration;
+  const duration = get_duration();
 
   ui.time_current.textContent = formatTime(current);
   ui.time_total.textContent = formatTime(duration);
-
   if (duration > 0) {
     ui.playedBar.style.width = (current / duration * 100) + "%";
   }
@@ -339,11 +345,12 @@ ui.audio.addEventListener("pause", () => playEnable(true));
 
 // Track duration progress bar
 ui.audio.addEventListener("progress", () => {
-  if (ui.audio.buffered.length > 0 && ui.audio.duration > 0) {
+  const duration = get_duration();
+  if (ui.audio.buffered.length > 0 && duration > 0) {
 
     const bufferedEnd = ui.audio.buffered.end(ui.audio.buffered.length - 1);
 
-    const percent = (bufferedEnd / ui.audio.duration) * 100;
+    const percent = (bufferedEnd / duration) * 100;
     ui.bufferedBar.style.width = percent + "%";
   }
 });
@@ -351,9 +358,11 @@ ui.audio.addEventListener("progress", () => {
 // Track seeking on progress bar
 function handleSeek(clientX) {
   if (!ui.audio.duration) return;
+  const duration = get_duration();
   const rect = ui.progressBar.getBoundingClientRect();
   const ratio = (clientX - rect.left) / rect.width;
-  const targetTime = ratio * ui.audio.duration;
+  const targetTime = ratio * (duration);
+  console.log("Seeking to", targetTime)
   ui.audio.currentTime = targetTime;
 }
 ui.progressBar.addEventListener("click", (e) => handleSeek(e.clientX));  // Desktop
