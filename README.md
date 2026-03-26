@@ -39,7 +39,7 @@ YT Audio uses an API wrapped around [`yt-dlp`](https://github.com/yt-dlp/yt-dlp)
     Visit http://localhost:8000 if you installed YT Audio on your local computer
     or use the IP/hostname of the server you installed it on.
 
-    ⚠️ Be careful to not expose que API to the public
+    ⚠️ Be careful to **not expose the API to the public**
     because requests to music providers (Bandcamp, YouTube) are made from your IP address.
 
 

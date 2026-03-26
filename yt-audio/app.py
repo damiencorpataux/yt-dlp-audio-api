@@ -15,8 +15,8 @@ def run_search(query: str):
     except: youtube = []
 
     return [
-        *[{**result, **{"source": "bandcamp"}} for result in bandcamp],
-        *[{**result, **{"source": "youtube"}} for result in youtube]
+        *[{**result, **{"provider": "bandcamp"}} for result in bandcamp],
+        *[{**result, **{"provider": "youtube"}} for result in youtube]
     ]
 
 def search_bandcamp(query):
