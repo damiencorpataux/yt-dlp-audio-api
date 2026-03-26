@@ -46,6 +46,10 @@
       border-radius: 4px;
     }
 
+    p {
+      margin-top: 0;
+    }
+
     /* Utiliy classes */
 
     .row {
@@ -71,8 +75,21 @@
       align-items: flex-start;
       gap: 18px;
     }
-    #results .result-item img {
+    #results .result-item:hover img {
+      filter: brightness(0.7);
+    }
+    #results .result-item img.thumbnail {
       width: 120px;
+    }
+    #results .result-item button {
+      opacity: .75;
+    }
+    #results .result-item button {
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: darkred;
     }
 
     .progress {
@@ -101,7 +118,7 @@
 <div class="app">
   <div class="row" style="align-items:center">
     <h1 style="font-size: 24px; color: gray; margin-top:0">
-      <span style="background-color:darkred; border-radius:999px; padding:8px">🎧</span>
+      <span>🎧</span>
       <span>YT Audio</span>
     </h1>
     <!--
@@ -127,16 +144,12 @@
     <strong id="trackname"></strong>
   </div>
   <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
-
     <button onclick="togglePlay()">▶︎ / ⏸︎</button>
     <span id="time" style="font-family:monospace">0:00/0:00</span>
     <div id="progressBar" class="progress" style="flex:1">
       <div id="bufferedBar" class="buffered"></div>
       <div id="playedBar" class="played"></div>
     </div>
-   <span style="margin-left:1%">🚲</span>
-    <input style="width:8%" type="range" id="speed" min="0.125" max="2" step="0.001" value="1">
-
   </div>
 
   <hr>
@@ -157,7 +170,6 @@ const ui = {
   results: document.getElementById("results"),
   trackname: document.getElementById("trackname"),
   time: document.getElementById("time"),
-  speed: document.getElementById("speed"),
   playedBar: document.getElementById("playedBar"),
   bufferedBar: document.getElementById("bufferedBar"),
   progressBar: document.getElementById("progressBar")
@@ -203,7 +215,6 @@ async function search() {
     const res = await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
     data = await res.json();
   } catch(e) {
-    console.error(e);
     alert(`❌ Search failed. Please try again.\n\n${String(e)}`);
     ui.results.innerHTML = "";
     throw(e);
@@ -220,14 +231,25 @@ async function search() {
     div.className = "row result-item";
 
     div.innerHTML = `
-      <img src="${r.thumbnail}">
-      <div style="flex:1;">
-        <div><strong>${escapeHTML(r.title)}</strong></div>
-        <br>
-        <div>${formatTime(r.duration, '-')}</div>
-        <div>${escapeHTML(r.channel)} <span style="color:gray">[${escapeHTML(r.source)}]</span></div>
+      <div style="position:relative; display:inline-block;">
+        <img class="thumbnail" src="${r.thumbnail}" style="display:block">
+        <button style="position:absolute; bottom:2px; right:2px">
+          ▶︎
+        </button>
       </div>
-      <div><button>▶︎ Play</button></div>
+      <div style="flex:1;">
+        <p><strong>${escapeHTML(r.title)}</strong></p>
+        <p>${formatTime(r.duration, '-')}</p>
+        <p>
+          <img width="16px" alt="${r.provider}" src="${
+            {
+              'bandcamp': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Bandcamp-button-bc-circle-green.svg/960px-Bandcamp-button-bc-circle-green.svg.png',
+              'youtube': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1280px-YouTube_full-color_icon_%282024%29.svg.png'
+            }[r.provider] || 'default_url'
+          }">
+          ${escapeHTML(r.channel)}
+        </p>
+      </div>
     `;
 
     div.querySelector("button").onclick = () => play(r.url);
@@ -264,17 +286,8 @@ function togglePlay() {
   else ui.audio.pause();
 }
 
-ui.speed.ondblclick = () => {
-  ui.audio.playbackRate = ui.speed.value = 1;  // Reset playback speed
-  console.debug('Reset speed', ui.audio.playbackRate);
-};
-ui.speed.oninput = () => {
-  ui.audio.playbackRate = ui.speed.value;
-  console.debug('Set speed', ui.audio.playbackRate);
-};
-ui.speed.dispatchEvent(new Event('input'));  // Apply speed on page load
-
 ui.audio.addEventListener("timeupdate", () => {
+  // Update playback time
   const current = ui.audio.currentTime;
   const duration = ui.audio.duration;
 
@@ -288,34 +301,36 @@ ui.audio.addEventListener("timeupdate", () => {
 /* -------------- BUFFER BAR -------------- */
 
 ui.audio.addEventListener("progress", () => {
-  try {
-    if (ui.audio.buffered.length > 0 && ui.audio.duration > 0) {
+  if (ui.audio.buffered.length > 0 && ui.audio.duration > 0) {
 
-      const bufferedEnd = ui.audio.buffered.end(ui.audio.buffered.length - 1);
-      lastBuffered = bufferedEnd;
+    const bufferedEnd = ui.audio.buffered.end(ui.audio.buffered.length - 1);
+    lastBuffered = bufferedEnd;
 
-      const percent = (bufferedEnd / ui.audio.duration) * 100;
-      ui.bufferedBar.style.width = percent + "%";
-    }
-  } catch (e) {
-    console.warn("Loading: unknown", e);
+    const percent = (bufferedEnd / ui.audio.duration) * 100;
+    ui.bufferedBar.style.width = percent + "%";
   }
 });
 
 /* ---------------- SEEK ---------------- */
 
-ui.progressBar.addEventListener("click", (e) => {
+function handleSeek(clientX) {
   if (!ui.audio.duration) return;
 
   const rect = ui.progressBar.getBoundingClientRect();
-  const ratio = (e.clientX - rect.left) / rect.width;
+  const ratio = (clientX - rect.left) / rect.width;
 
   const targetTime = ratio * ui.audio.duration;
+  ui.audio.currentTime = targetTime;
+}
 
-  // clamp to buffered
-  const safeTime = Math.min(targetTime, lastBuffered);
+// Desktop
+ui.progressBar.addEventListener("click", (e) => {
+  handleSeek(e.clientX);
+});
 
-  ui.audio.currentTime = safeTime;
+// Mobile
+ui.progressBar.addEventListener("touchstart", (e) => {
+  handleSeek(e.touches[0].clientX);
 });
 
 /* Debug */
