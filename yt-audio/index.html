@@ -11,6 +11,10 @@
 
     /* Global styling */
 
+    html, body {
+      overscroll-behavior: none;
+    }
+
     body {
       background: #111;
       color: #e6e6e6;
@@ -116,6 +120,7 @@
 
 <body>
 <div class="app">
+  <!-- HEADER -->
   <div class="row" style="align-items:center">
     <h1 style="font-size: 24px; color: gray; margin-top:0">
       <span>🎧</span>
@@ -151,12 +156,10 @@
     </div>
     <span id="time_total" style="font-family:monospace">0:00</span>
   </div>
-
   <hr>
 
   <!-- RESULTS -->
-  <div id="results">
-  </div>
+  <div id="results"></div>
 
   <audio id="audio"></audio>
 </div>
