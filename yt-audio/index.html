@@ -136,7 +136,6 @@
     <input id="searchInput" autofocus placeholder="♪ Search or paste URL" style="flex:1">
     <button>Search</button>
   </form>
-
   <hr>
 
   <!-- PLAYER -->
@@ -145,11 +144,12 @@
   </div>
   <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
     <button id="play" style="width:32px">⌛</button>
-    <span id="time" style="font-family:monospace">0:00/0:00</span>
+    <span id="time_current" style="font-family:monospace">0:00</span>
     <div id="progressBar" class="progress" style="flex:1">
       <div id="bufferedBar" class="buffered"></div>
       <div id="playedBar" class="played"></div>
     </div>
+    <span id="time_total" style="font-family:monospace">0:00</span>
   </div>
 
   <hr>
@@ -170,7 +170,8 @@ const ui = {
   results: document.getElementById("results"),
   trackname: document.getElementById("trackname"),
   play: document.getElementById("play"),
-  time: document.getElementById("time"),
+  time_current: document.getElementById("time_current"),
+  time_total: document.getElementById("time_total"),
   playedBar: document.getElementById("playedBar"),
   bufferedBar: document.getElementById("bufferedBar"),
   progressBar: document.getElementById("progressBar")
@@ -292,7 +293,8 @@ ui.audio.addEventListener("timeupdate", () => {
   const current = ui.audio.currentTime;
   const duration = ui.audio.duration;
 
-  ui.time.textContent = `${formatTime(current)}/${formatTime(duration)}`;
+  ui.time_current.textContent = formatTime(current);
+  ui.time_total.textContent = formatTime(duration);
 
   if (duration > 0) {
     ui.playedBar.style.width = (current / duration * 100) + "%";
