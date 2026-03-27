@@ -187,7 +187,7 @@
 
     <!-- PLAYER -->
     <div class="row" style="align-items:center; gap:24px; margin-bottom:12px">
-      <span id="trackname" style="flex:1;margin-left:16px">Track name Track name Track name Track name Track name Track name Track name Track name Track name Track name Track name Track name Track name Track name Track name</span>
+      <span id="trackname" style="flex:1;margin-left:16px"></span>
       <button id="playlist-toggle">
         ≡
       </button>
@@ -349,6 +349,7 @@ function enqueue(track) {
   for (const [i, playlist_track] of playlist.entries()) {
     if (playlist_track.url == track.url) {
       ui.playlist.children[i].scrollIntoView({behavior:"smooth"});
+      // FIXME: Move to existing track to last position of playlist, to avoid jumping back on playlist ?
       return i;
     }
   }
