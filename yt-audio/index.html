@@ -72,13 +72,8 @@
 
     .app {
       display: grid;
-      grid-template-rows: auto auto 1fr;
-      /* height: 100vh; */
     }
 
-    #results {
-      overflow-y: auto;
-    }
     #results .result-item {
       margin-bottom: 32px;
       font-size: 85%;
@@ -154,7 +149,11 @@
     <strong id="trackname"></strong>
   </div>
   <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
-    <button id="play" style="width:32px">⌛</button>
+    <div>
+      <button id="play" style="width:36px">⌛</button>
+      <button id="play-rev" style="width:28px">⏪︎</button>
+      <button id="play-ffwd" style="width:28px">⏩︎</button>
+    </div>
     <span id="time_current" style="font-family:monospace">0:00</span>
     <div id="progressBar" class="progress" style="flex:1">
       <div id="bufferedBar" class="buffered"></div>
@@ -165,7 +164,8 @@
   <hr>
 
   <!-- RESULTS -->
-  <div id="results"></div>
+  <div id="results">
+  </div>
 
   <audio id="audio"></audio>
 </div>
@@ -179,6 +179,8 @@ const ui = {
   results: document.getElementById("results"),
   trackname: document.getElementById("trackname"),
   play: document.getElementById("play"),
+  play_ffwd: document.getElementById("play-ffwd"),
+  play_rev: document.getElementById("play-rev"),
   time_current: document.getElementById("time_current"),
   time_total: document.getElementById("time_total"),
   playedBar: document.getElementById("playedBar"),
@@ -309,18 +311,24 @@ async function play(url) {
   }
 }
 
-// Toggle play/pause
+// Playback: toggle play/pause, fast-forward, fast-reverse
 function playToggle() {
-
   if (ui.play.disabled) return;
-
   if (ui.audio.paused) {
     ui.audio.play();
   } else {
     ui.audio.pause();
   }
 }
+function playFfwd() {
+  ui.audio.currentTime += 5;
+}
+function playRev() {
+  ui.audio.currentTime -= 5;
+}
 ui.play.addEventListener("click", playToggle);
+ui.play_ffwd.addEventListener("click", playFfwd);
+ui.play_rev.addEventListener("click", playRev);
 
 // Update playback time & progress bar
 ui.audio.addEventListener("timeupdate", () => {
@@ -350,7 +358,6 @@ playEnable(false);  // Start disabled
 ui.audio.addEventListener("canplay", () => playEnable(true));
 ui.audio.addEventListener("loadstart", () => playEnable(false));
 ui.audio.addEventListener("waiting", () => playEnable(false));
-ui.audio.addEventListener("stalled", () => playEnable(false));
 ui.audio.addEventListener("play", () => playEnable(true));
 ui.audio.addEventListener("pause", () => playEnable(true));
 
@@ -388,8 +395,8 @@ document.addEventListener("keydown", (e) => {
 
   let preventDefault = true;
   if      (e.code == "Space")      playToggle();
-  else if (e.code == "ArrowRight") ui.audio.currentTime += 5;
-  else if (e.code == "ArrowLeft")  ui.audio.currentTime -= 5;
+  else if (e.code == "ArrowRight") playFfwd();
+  else if (e.code == "ArrowLeft")  playRev();
   else preventDefault = false;
 
   if (preventDefault) e.preventDefault();
@@ -398,9 +405,9 @@ document.addEventListener("keydown", (e) => {
 
 // Play button color indicator
 var style = window.getComputedStyle(document.body);
+ui.audio.addEventListener("loadstart", () => ui.play.style.borderColor = style.getPropertyValue("--player-canplay"));
 ui.audio.addEventListener("canplay", () => ui.play.style.borderColor = style.getPropertyValue("--player-canplay"));
 ui.audio.addEventListener("waiting", () => ui.play.style.borderColor = style.getPropertyValue("--player-waiting"));
-ui.audio.addEventListener("stalled", () => ui.play.style.borderColor = style.getPropertyValue("--player-stalled"));
 
 // Debug
 ui.audio.addEventListener("loadstart", () => console.log("loadstart"));
