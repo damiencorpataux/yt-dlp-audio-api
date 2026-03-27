@@ -12,10 +12,7 @@
     /* Global styling */
 
     :root {
-      --text-color: #ccc;
-      --player-canplay: #4da3ff;
-      --player-waiting: darkorange;
-      --player-stalled: darkred;
+      --color-text: #ccc;
     }
 
     html, body {
@@ -25,8 +22,8 @@
 
     body {
       padding: 20px;
-      background: #111;
-      color: var(--text-color);
+      background: #141414;
+      color: var(--color-text);
       font-family: system-ui, -apple-system, sans-serif;
     }
 
@@ -39,7 +36,7 @@
 
     input, button {
       background: #1a1d24;
-      color: var(--text-color);
+      color: var(--color-text);
       border: 1px solid #333;
       border-radius: 4px;
       padding: 6px;
@@ -126,7 +123,7 @@
     .progress .played {
       position: absolute;
       height: 100%;
-      background: var(--player-canplay);
+      background: #4da3ff;
       width: 0%;
     }
 
@@ -167,17 +164,16 @@
     </div>
 
     <!-- SEARCH -->
-    <div class="search">
+    <div class="search" style="margin-bottom:32px">
       <form class="row" onsubmit="search(); return false;">
         <input id="searchInput" autofocus placeholder="♪ Search or paste URL" style="flex:1">
         <button>Search</button>
       </form>
-      <hr>
     </div>
 
     <!-- PLAYER -->
     <div style="margin-bottom:10px; min-height:1lh">
-      <strong id="trackname"></strong>
+      <span id="trackname"></span>
     </div>
     <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
       <div>
@@ -385,7 +381,7 @@ function playEnable(enable) {
     ui.play.disabled = true;
   }
 }
-playEnable(false);  // Start disabled
+playEnable(false);  // Initalize as disabled
 ui.audio.addEventListener("canplay", () => playEnable(true));
 ui.audio.addEventListener("loadstart", () => playEnable(false));
 ui.audio.addEventListener("waiting", () => playEnable(false));
@@ -433,12 +429,6 @@ document.addEventListener("keydown", (e) => {
   if (preventDefault) e.preventDefault();
   if (preventDefault) console.log('Hotkey prevented default')
 });
-
-// Play button color indicator
-var style = window.getComputedStyle(document.body);
-ui.audio.addEventListener("loadstart", () => ui.play.style.borderColor = style.getPropertyValue("--player-canplay"));
-ui.audio.addEventListener("canplay", () => ui.play.style.borderColor = style.getPropertyValue("--player-canplay"));
-ui.audio.addEventListener("waiting", () => ui.play.style.borderColor = style.getPropertyValue("--player-waiting"));
 
 // Debug
 ui.audio.addEventListener("loadstart", () => console.log("loadstart"));
