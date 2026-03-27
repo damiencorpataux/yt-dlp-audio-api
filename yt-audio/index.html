@@ -74,6 +74,10 @@
       gap: 8px;
     }
 
+    .scroll-pane {
+      overflow-y: auto;  /* allow results scroll */
+    }
+
     /* Specific components styling */
 
     .app {
@@ -82,9 +86,15 @@
       height: calc(100dvh - 40px);
     }
 
-    .scroll-pane {
-      overflow-y: auto;  /* allow results scroll */
+    .header {
+      min-width: 0; /* necessary for #trackname overflow */
     }
+    #trackname {
+      white-space: nowrap;
+      overflow: scroll;
+      scrollbar-width: none;
+    }
+
     #results .result-item {
       margin-bottom: 32px;
       font-size: 85%;
@@ -98,12 +108,16 @@
       width: 120px;
     }
     #results .result-item button {
-      opacity: .75;
-    }
-    #results .result-item button {
-      width: 36px;
-      height: 36px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
+      padding: 0;
+      opacity: .5;
+    }
+    #results .result-item button.result-play {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
       background-color: darkred;
     }
 
@@ -164,8 +178,8 @@
     </div>
 
     <!-- PLAYER -->
-    <div style="margin:12px 16px 12px 16px; min-height:1lh">
-      <span id="trackname"></span>
+    <div class="row" style="align-items:center; margin: 0 12px 12px 0">
+      <span id="trackname" style="flex:1;margin-left:16px"></span>
     </div>
     <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
       <div>
@@ -271,7 +285,7 @@ async function search() {
     div.innerHTML = `
       <div style="position:relative; display:inline-block;">
         <img class="thumbnail" src="${r.thumbnail}" style="display:block">
-        <button style="position:absolute; bottom:2px; right:2px">
+        <button class="result-play" style="position:absolute; bottom:2px; right:2px">
           ▶︎
         </button>
       </div>
@@ -290,7 +304,7 @@ async function search() {
       </div>
     `;
 
-    div.querySelector("button").onclick = () => play(r.url);
+    div.querySelector("button.result-play").onclick = () => play(r.url);
 
     ui.results.appendChild(div);
   });
