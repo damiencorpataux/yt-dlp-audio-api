@@ -12,6 +12,7 @@
     /* Global styling */
 
     :root {
+      --text-color: #ccc;
       --player-canplay: #4da3ff;
       --player-waiting: darkorange;
       --player-stalled: darkred;
@@ -22,10 +23,10 @@
     }
 
     body {
-      background: #111;
-      color: #e6e6e6;
-      font-family: system-ui, -apple-system, sans-serif;
       padding: 20px;
+      background: #111;
+      color: var(--text-color);
+      font-family: system-ui, -apple-system, sans-serif;
     }
 
     hr {
@@ -37,12 +38,19 @@
 
     input, button {
       background: #1a1d24;
-      color: #e6e6e6;
+      color: var(--text-color);
       border: 1px solid #333;
       border-radius: 4px;
       padding: 6px;
     }
-
+    input:focus {
+      color: white;
+      outline: none !important;
+      box-shadow: 0 0 16px #444;
+    }
+    button {
+      cursor: pointer;
+    }
     button:active {
       background-color: darkred;
     }
@@ -90,7 +98,6 @@
       opacity: .75;
     }
     #results .result-item button {
-      cursor: pointer;
       width: 36px;
       height: 36px;
       border-radius: 50%;
@@ -115,6 +122,21 @@
       height: 100%;
       background: var(--player-canplay);
       width: 0%;
+    }
+
+    /* Mobile */
+
+    @media (max-width: 420px) {
+      body {
+        font-size: 90%;
+        padding: 10px;
+      }
+      h1, button {
+        font-size: 80% !important;
+      }
+      #results .result-item img.thumbnail {
+        width: 80px;
+      }
     }
   </style>
 </head>
@@ -164,8 +186,7 @@
   <hr>
 
   <!-- RESULTS -->
-  <div id="results">
-  </div>
+  <div id="results"></div>
 
   <audio id="audio"></audio>
 </div>
