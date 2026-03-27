@@ -11,15 +11,20 @@
 
     /* Global styling */
 
+    :root {
+      --color-text: #ccc;
+    }
+
     html, body {
       overscroll-behavior: none;
+      overflow: hidden;  /* prevent page scroll */
     }
 
     body {
-      background: #111;
-      color: #e6e6e6;
-      font-family: system-ui, -apple-system, sans-serif;
       padding: 20px;
+      background: #141414;
+      color: var(--color-text);
+      font-family: system-ui, -apple-system, sans-serif;
     }
 
     hr {
@@ -31,12 +36,19 @@
 
     input, button {
       background: #1a1d24;
-      color: #e6e6e6;
+      color: var(--color-text);
       border: 1px solid #333;
       border-radius: 4px;
       padding: 6px;
     }
-
+    input:focus {
+      color: white;
+      outline: none !important;
+      box-shadow: 0 0 16px #444;
+    }
+    button {
+      cursor: pointer;
+    }
     button:active {
       background-color: darkred;
     }
@@ -66,12 +78,12 @@
 
     .app {
       display: grid;
-      grid-template-rows: auto auto 1fr;
-      /* height: 100vh; */
+      grid-template-rows: auto 1fr;  /* explicit rows */
+      height: calc(100dvh - 40px);
     }
 
-    #results {
-      overflow-y: auto;
+    .scroll-pane {
+      overflow-y: auto;  /* allow results scroll */
     }
     #results .result-item {
       margin-bottom: 32px;
@@ -89,7 +101,6 @@
       opacity: .75;
     }
     #results .result-item button {
-      cursor: pointer;
       width: 36px;
       height: 36px;
       border-radius: 50%;
@@ -115,51 +126,73 @@
       background: #4da3ff;
       width: 0%;
     }
+
+    /* Mobile */
+
+    @media (max-width: 420px) {
+      body {
+        font-size: 90%;
+        padding: 10px;
+      }
+      h1, button {
+        font-size: 80% !important;
+      }
+      #results .result-item img.thumbnail {
+        width: 80px;
+      }
+    }
   </style>
 </head>
 
 <body>
 <div class="app">
-  <!-- HEADER -->
-  <div class="row" style="align-items:center">
-    <h1 style="font-size: 24px; color: gray; margin-top:0">
-      <span>🎧</span>
-      <span>YT Audio</span>
-    </h1>
-    <!--
-    <div>
-      <a href="https://github.com/damiencorpataux/yt-dlp-audio-api">
-        <img height="15px" src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg">
-        Fork me
-      </a>
+  <div class="header">
+    <!-- HEADER -->
+    <div class="row" style="align-items:center">
+      <h1 style="font-size: 24px; color: gray; margin-top:0">
+        <span>🎧</span>
+        <span>YT Audio</span>
+      </h1>
+      <!--
+      <div>
+        <a href="https://github.com/damiencorpataux/yt-dlp-audio-api">
+          <img height="15px" src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg">
+          Fork me
+        </a>
+      </div>
+      -->
     </div>
-    -->
-  </div>
 
-  <!-- SEARCH -->
-  <form class="row" onsubmit="search(); return false;">
-    <input id="searchInput" autofocus placeholder="♪ Search or paste URL" style="flex:1">
-    <button>Search</button>
-  </form>
-  <hr>
-
-  <!-- PLAYER -->
-  <div style="margin-bottom:10px; min-height:1lh">
-    <strong id="trackname"></strong>
-  </div>
-  <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
-    <button id="play" style="width:32px">⌛</button>
-    <span id="time_current" style="font-family:monospace">0:00</span>
-    <div id="progressBar" class="progress" style="flex:1">
-      <div id="bufferedBar" class="buffered"></div>
-      <div id="playedBar" class="played"></div>
+    <!-- PLAYER -->
+    <div style="margin:12px 16px 12px 16px; min-height:1lh">
+      <span id="trackname"></span>
     </div>
-    <span id="time_total" style="font-family:monospace">0:00</span>
+    <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
+      <div>
+        <button id="play" style="width:36px">⌛</button>
+        <button id="play-rev" style="width:28px">⏪︎</button>
+        <button id="play-ffwd" style="width:28px">⏩︎</button>
+      </div>
+      <span id="time_current" style="font-family:monospace">0:00</span>
+      <div id="progressBar" class="progress" style="flex:1">
+        <div id="bufferedBar" class="buffered"></div>
+        <div id="playedBar" class="played"></div>
+      </div>
+      <span id="time_total" style="font-family:monospace">0:00</span>
+    </div>
+    <hr>
   </div>
-  <hr>
 
-  <!-- RESULTS -->
-  <div id="results"></div>
+  <div class="scroll-pane">
+    <!-- SEARCH -->
+    <form class="row" style="margin-bottom:16px" onsubmit="search(); return false;">
+      <input id="searchInput" autofocus placeholder="♪ Search or paste URL" style="flex:1">
+      <button>Search</button>
+    </form>
+
+    <!-- RESULTS -->
+    <div id="results"></div>
+  </div>
 
   <audio id="audio"></audio>
 </div>
@@ -173,6 +206,8 @@ const ui = {
   results: document.getElementById("results"),
   trackname: document.getElementById("trackname"),
   play: document.getElementById("play"),
+  play_ffwd: document.getElementById("play-ffwd"),
+  play_rev: document.getElementById("play-rev"),
   time_current: document.getElementById("time_current"),
   time_total: document.getElementById("time_total"),
   playedBar: document.getElementById("playedBar"),
@@ -181,8 +216,7 @@ const ui = {
 };
 
 function formatTime(t, fallback) {
-  fallback = fallback || '?:??';
-  if (isNaN(t) || t == null) return fallback;
+  if (!isFinite(t) || t == null) return fallback || '?:??';
   const m = Math.floor(t / 60);
   const s = Math.floor(t % 60).toString().padStart(2, "0");
   return `${m}:${s}`;
@@ -264,18 +298,27 @@ async function search() {
 
 /* ---------------- PLAYER ---------------- */
 
+// NOTE: In Chrome, ui.audio.duration is Infinity without Content-Length, ie. when using route /stream/mp3.
+let current_track_info = {};
+function get_duration() {
+  return isFinite(ui.audio.duration) ? ui.audio.duration : current_track_info.duration;
+}
+
 // Play URL
 async function play(url) {
   ui.trackname.innerHTML = '♪ Loading track...'
   window.scrollTo({top: 0, behavior: 'smooth'});
 
+  console.debug('Loading info for URL', url);
+  const info_res = await fetch(`${API_URL}/info?url=${encodeURIComponent(url)}`)
+  const info = await info_res.json();
+  current_track_info = info;
+  ui.trackname.innerHTML = escapeHTML(info.title || 'Unknown track name');
+  //document.title = `YT Audio - ${ui.trackname.innerHTML}`;
+
   // Play direct URL
   try {
-    console.debug('Loading info for URL', url);
-    const info_res = await fetch(`${API_URL}/info?url=${encodeURIComponent(url)}`)
-    const info = await info_res.json();
-    console.debug('Playing direct URL', info.acodec, info.url);
-    ui.trackname.innerHTML = escapeHTML(info.title || 'Unknown');
+    console.debug(`Playing direct stream URL (${info.acodec})`, info.url);
     ui.audio.src = info.url;
     await ui.audio.play();
     return;
@@ -285,8 +328,9 @@ async function play(url) {
 
   // Play fallback proxy URL (mp3 transcoded)
   try {
-    console.log('Playing fallback proxy URL', url);
-    ui.audio.src = `${API_URL}/stream/mp3?url=${encodeURIComponent(url)}`;
+    const proxy_url = `${API_URL}/stream/mp3?url=${encodeURIComponent(url)}`;
+    console.log('Playing fallback proxy URL (mp3)', proxy_url);
+    ui.audio.src = proxy_url;
     await ui.audio.play();
   } catch(e) {
     alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
@@ -295,23 +339,32 @@ async function play(url) {
   }
 }
 
-// Toggle play/pause
-ui.play.addEventListener("click", () => {
+// Playback: toggle play/pause, fast-forward, fast-reverse
+function playToggle() {
+  if (ui.play.disabled) return;
   if (ui.audio.paused) {
     ui.audio.play();
   } else {
     ui.audio.pause();
   }
-});
+}
+function playFfwd() {
+  ui.audio.currentTime += 5;
+}
+function playRev() {
+  ui.audio.currentTime -= 5;
+}
+ui.play.addEventListener("click", playToggle);
+ui.play_ffwd.addEventListener("click", playFfwd);
+ui.play_rev.addEventListener("click", playRev);
 
-// Update playback time
+// Update playback time & progress bar
 ui.audio.addEventListener("timeupdate", () => {
   const current = ui.audio.currentTime;
-  const duration = ui.audio.duration;
+  const duration = get_duration();
 
   ui.time_current.textContent = formatTime(current);
   ui.time_total.textContent = formatTime(duration);
-
   if (duration > 0) {
     ui.playedBar.style.width = (current / duration * 100) + "%";
   }
@@ -329,21 +382,22 @@ function playEnable(enable) {
     ui.play.disabled = true;
   }
 }
-playEnable(false);  // Start disabled
+playEnable(false);  // Initalize as disabled
 ui.audio.addEventListener("canplay", () => playEnable(true));
 ui.audio.addEventListener("loadstart", () => playEnable(false));
 ui.audio.addEventListener("waiting", () => playEnable(false));
-ui.audio.addEventListener("stalled", () => playEnable(false));
 ui.audio.addEventListener("play", () => playEnable(true));
 ui.audio.addEventListener("pause", () => playEnable(true));
 
 // Track duration progress bar
 ui.audio.addEventListener("progress", () => {
-  if (ui.audio.buffered.length > 0 && ui.audio.duration > 0) {
+  // FIXME: Display seems broken.
+  const duration = get_duration();
+  if (ui.audio.buffered.length > 0 && duration > 0) {
 
     const bufferedEnd = ui.audio.buffered.end(ui.audio.buffered.length - 1);
 
-    const percent = (bufferedEnd / ui.audio.duration) * 100;
+    const percent = (bufferedEnd / duration) * 100;
     ui.bufferedBar.style.width = percent + "%";
   }
 });
@@ -351,13 +405,31 @@ ui.audio.addEventListener("progress", () => {
 // Track seeking on progress bar
 function handleSeek(clientX) {
   if (!ui.audio.duration) return;
+  const duration = get_duration();
   const rect = ui.progressBar.getBoundingClientRect();
   const ratio = (clientX - rect.left) / rect.width;
-  const targetTime = ratio * ui.audio.duration;
+  const targetTime = ratio * (duration);
+  console.log("Seeking to", targetTime)
   ui.audio.currentTime = targetTime;
 }
 ui.progressBar.addEventListener("click", (e) => handleSeek(e.clientX));  // Desktop
 ui.progressBar.addEventListener("touchstart", (e) => handleSeek(e.touches[0].clientX));  // Mobile
+
+/* ---------------- HOTKEYS ---------------- */
+
+document.addEventListener("keydown", (e) => {
+  
+  if (["INPUT", "BUTTON"].includes(e.target.tagName)) return;
+
+  let preventDefault = true;
+  if      (e.code == "Space")      playToggle();
+  else if (e.code == "ArrowRight") playFfwd();
+  else if (e.code == "ArrowLeft")  playRev();
+  else preventDefault = false;
+
+  if (preventDefault) e.preventDefault();
+  if (preventDefault) console.log('Hotkey prevented default')
+});
 
 // Debug
 ui.audio.addEventListener("loadstart", () => console.log("loadstart"));
