@@ -20,6 +20,7 @@
 
     html, body {
       overscroll-behavior: none;
+      overflow: hidden;  /* prevent page scroll */
     }
 
     body {
@@ -80,8 +81,13 @@
 
     .app {
       display: grid;
+      grid-template-rows: auto 1fr;  /* explicit rows */
+      height: calc(100dvh - 40px);
     }
 
+    #results {
+      overflow-y: auto;  /* allow results scroll */
+    }
     #results .result-item {
       margin-bottom: 32px;
       font-size: 85%;
@@ -143,47 +149,51 @@
 
 <body>
 <div class="app">
-  <!-- HEADER -->
-  <div class="row" style="align-items:center">
-    <h1 style="font-size: 24px; color: gray; margin-top:0">
-      <span>🎧</span>
-      <span>YT Audio</span>
-    </h1>
-    <!--
-    <div>
-      <a href="https://github.com/damiencorpataux/yt-dlp-audio-api">
-        <img height="15px" src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg">
-        Fork me
-      </a>
+  <div class="header">
+    <!-- HEADER -->
+    <div class="row" style="align-items:center">
+      <h1 style="font-size: 24px; color: gray; margin-top:0">
+        <span>🎧</span>
+        <span>YT Audio</span>
+      </h1>
+      <!--
+      <div>
+        <a href="https://github.com/damiencorpataux/yt-dlp-audio-api">
+          <img height="15px" src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg">
+          Fork me
+        </a>
+      </div>
+      -->
     </div>
-    -->
-  </div>
 
-  <!-- SEARCH -->
-  <form class="row" onsubmit="search(); return false;">
-    <input id="searchInput" autofocus placeholder="♪ Search or paste URL" style="flex:1">
-    <button>Search</button>
-  </form>
-  <hr>
+    <!-- SEARCH -->
+    <div class="search">
+      <form class="row" onsubmit="search(); return false;">
+        <input id="searchInput" autofocus placeholder="♪ Search or paste URL" style="flex:1">
+        <button>Search</button>
+      </form>
+      <hr>
+    </div>
 
-  <!-- PLAYER -->
-  <div style="margin-bottom:10px; min-height:1lh">
-    <strong id="trackname"></strong>
-  </div>
-  <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
-    <div>
-      <button id="play" style="width:36px">⌛</button>
-      <button id="play-rev" style="width:28px">⏪︎</button>
-      <button id="play-ffwd" style="width:28px">⏩︎</button>
+    <!-- PLAYER -->
+    <div style="margin-bottom:10px; min-height:1lh">
+      <strong id="trackname"></strong>
     </div>
-    <span id="time_current" style="font-family:monospace">0:00</span>
-    <div id="progressBar" class="progress" style="flex:1">
-      <div id="bufferedBar" class="buffered"></div>
-      <div id="playedBar" class="played"></div>
+    <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
+      <div>
+        <button id="play" style="width:36px">⌛</button>
+        <button id="play-rev" style="width:28px">⏪︎</button>
+        <button id="play-ffwd" style="width:28px">⏩︎</button>
+      </div>
+      <span id="time_current" style="font-family:monospace">0:00</span>
+      <div id="progressBar" class="progress" style="flex:1">
+        <div id="bufferedBar" class="buffered"></div>
+        <div id="playedBar" class="played"></div>
+      </div>
+      <span id="time_total" style="font-family:monospace">0:00</span>
     </div>
-    <span id="time_total" style="font-family:monospace">0:00</span>
+    <hr>
   </div>
-  <hr>
 
   <!-- RESULTS -->
   <div id="results"></div>
