@@ -64,6 +64,7 @@
 
     p {
       margin-top: 0;
+      margin-bottom: .5lh;
     }
 
     /* Utiliy classes */
@@ -74,6 +75,10 @@
       gap: 8px;
     }
 
+    .scroll-pane {
+      overflow-y: auto;  /* allow results scroll */
+    }
+
     /* Specific components styling */
 
     .app {
@@ -82,9 +87,16 @@
       height: calc(100dvh - 40px);
     }
 
-    .scroll-pane {
-      overflow-y: auto;  /* allow results scroll */
+    .header {
+      min-width: 0; /* necessary for #trackname overflow */
     }
+    #trackname {
+      min-height: 1lh;
+      white-space: nowrap;
+      overflow: scroll;
+      scrollbar-width: none;
+    }
+
     #results .result-item {
       margin-bottom: 32px;
       font-size: 85%;
@@ -98,13 +110,23 @@
       width: 120px;
     }
     #results .result-item button {
-      opacity: .75;
-    }
-    #results .result-item button {
-      width: 36px;
-      height: 36px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
+      padding: 0;
+      opacity: .5;
+    }
+    #results .result-item button.result-play {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
       background-color: darkred;
+    }
+    #results .result-item button.result-enqueue {
+      position: absolute;
+      bottom: 2px;
+      left: 2px;
+      background-color: #333;
     }
 
     .progress {
@@ -164,8 +186,11 @@
     </div>
 
     <!-- PLAYER -->
-    <div style="margin:12px 16px 12px 16px; min-height:1lh">
-      <span id="trackname"></span>
+    <div class="row" style="align-items:center; gap:24px; margin-bottom:12px">
+      <span id="trackname" style="flex:1;margin-left:16px">Track name Track name Track name Track name Track name Track name Track name Track name Track name Track name Track name Track name Track name Track name Track name</span>
+      <button id="playlist-toggle">
+        ≡
+      </button>
     </div>
     <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
       <div>
@@ -181,6 +206,10 @@
       <span id="time_total" style="font-family:monospace">0:00</span>
     </div>
     <hr>
+    <div id="playlist-container">
+      <div id="playlist" style="min-height:0; max-height:21vh; overflow:scroll"></div>
+      <hr>
+    </div>
   </div>
 
   <div class="scroll-pane">
@@ -212,8 +241,17 @@ const ui = {
   time_total: document.getElementById("time_total"),
   playedBar: document.getElementById("playedBar"),
   bufferedBar: document.getElementById("bufferedBar"),
-  progressBar: document.getElementById("progressBar")
+  progressBar: document.getElementById("progressBar"),
+  playlist: document.getElementById("playlist"),
+  playlist_toggle: document.getElementById("playlist-toggle")
 };
+
+/* ---------------- HELPERS --------------- */
+
+function get_track_duration() {
+  // NOTE: In Chrome, ui.audio.duration is Infinity without Content-Length, ie. when using route /stream/mp3.
+  return isFinite(ui.audio.duration) ? ui.audio.duration : playlist[playlist_position].duration;
+}
 
 function formatTime(t, fallback) {
   if (!isFinite(t) || t == null) return fallback || '?:??';
@@ -241,7 +279,7 @@ async function search() {
   // 🔥 Direct play if URL
   if (isURL(q)) {
     ui.results.innerHTML = `🎶 Playing <q>${q}</q>...`;
-    play(q);
+    play_url(q);
     return;
   }
 
@@ -264,55 +302,142 @@ async function search() {
   ui.search.value = "";
   ui.results.innerHTML = "";
 
-  data.results.forEach(r => {
+  data.results.forEach(track => {
     const div = document.createElement("div");
     div.className = "row result-item";
 
     div.innerHTML = `
       <div style="position:relative; display:inline-block;">
-        <img class="thumbnail" src="${r.thumbnail}" style="display:block">
-        <button style="position:absolute; bottom:2px; right:2px">
+        <img class="thumbnail" src="${track.thumbnail}" style="display:block">
+        <button class="result-play" style="position:absolute; bottom:2px; right:2px">
           ▶︎
+        </button>
+        <button class="result-enqueue" style="position:absolute; bottom:2px; right:2px">
+          ≡
         </button>
       </div>
       <div style="flex:1;">
-        <p><strong>${escapeHTML(r.title)}</strong></p>
-        <p>${formatTime(r.duration, '-')}</p>
+        <p><strong>${escapeHTML(track.title)}</strong></p>
+        <p>${formatTime(track.duration, '-')}</p>
         <p>
-          <img width="16px" alt="${r.provider}" src="${
+          <img width="16px" alt="${track.provider}" src="${
             {
               'bandcamp': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Bandcamp-button-bc-circle-green.svg/960px-Bandcamp-button-bc-circle-green.svg.png',
               'youtube': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1280px-YouTube_full-color_icon_%282024%29.svg.png'
-            }[r.provider] || 'default_url'
+            }[track.provider] || 'default_url'
           }">
-          ${escapeHTML(r.channel)}
+          ${escapeHTML(track.channel)}
         </p>
       </div>
     `;
 
-    div.querySelector("button").onclick = () => play(r.url);
+    div.querySelector("button.result-play").onclick = () => play_position(enqueue(track));
+    div.querySelector("button.result-enqueue").onclick = () => enqueue(track);
 
     ui.results.appendChild(div);
   });
 }
 
-/* ---------------- PLAYER ---------------- */
+/* --------------- PLAYLIST --------------- */
 
-// NOTE: In Chrome, ui.audio.duration is Infinity without Content-Length, ie. when using route /stream/mp3.
-let current_track_info = {};
-function get_duration() {
-  return isFinite(ui.audio.duration) ? ui.audio.duration : current_track_info.duration;
+let playlist_position = parseInt(localStorage.playlist_position) || 0;  // Private
+const playlist = JSON.parse(localStorage.playlist || null) || [];
+// const playlist = [{"url":"https://songforberta.bandcamp.com/track/song-for-berta-unmixed-demo","title":"Song for Berta - Unmixed Demo","channel":"by Damien Rice, JFDR, Sandrayati Fay","thumbnail":"https://f4.bcbits.com/img/a2705409571_7.jpg","description":"tags:Acoustic,Honduras,acoustic","duration":null,"provider":"bandcamp"},{"url":"https://marcgartman.bandcamp.com/track/damien","title":"DAMIEN","channel":"by DAMIEN","thumbnail":"https://f4.bcbits.com/img/a2686841425_7.jpg","description":"tags:electronic,acoustic,UnitedStates,bedroom-pop,popelectronic,singersongwriter;folk,Minnesota,Rock,Duluth","duration":null,"provider":"bandcamp"},{"url":"https://onnset.bandcamp.com/track/damien-schneider-seti-ansome-remix","title":"Damien Schneider - Seti (Ansome Remix)","channel":"from ONNST003 - Damien Schneider - Seti EP (Ansome Remix) by Damien Schneider","thumbnail":"https://f4.bcbits.com/img/a2602295058_7.jpg","description":"","duration":null,"provider":"bandcamp"}];
+
+function enqueue(track) {
+  // If track is already in playlist, don't add it and simply scroll playlist to the track
+  for (const [i, playlist_track] of playlist.entries()) {
+    if (playlist_track.url == track.url) {
+      ui.playlist.children[i].scrollIntoView({behavior:"smooth"});
+      return i;
+    }
+  }
+  // Else append track to playlist
+  if (track) playlist.push(track);
+  localStorage.playlist = JSON.stringify(playlist);
+  playlist_redraw();
+  return playlist.length;
+}
+function dequeue(position) {
+  if (!Number.isInteger(position)) return;
+  if (confirm("Remove track from playlist ?")) {
+    playlist.splice(position, 1);
+    localStorage.playlist = JSON.stringify(playlist);
+    playlist_redraw();
+  }
 }
 
-// Play URL
-async function play(url) {
+function playlist_redraw() {
+  ui.playlist.innerHTML = '';
+  for (const [i, track] of playlist.entries()) {
+    const div = document.createElement("div");
+    div.innerHTML += `
+      <p class="row" style="gap:12px; align-items:center; cursor:pointer">
+        <button class="playlist-play">▶︎</button>
+        <img width="24px" src="${track.thumbnail}">
+        <span style="flex:1">
+        ${track.title}
+        ${(track.duration) ? formatTime(track.duration) : ''}
+        </span>
+        <button class="playlist-remove">╳</button>
+      </p>
+    `;
+    div.querySelector("button.playlist-play").addEventListener("click", () => play_position(i));
+    div.querySelector("button.playlist-remove").addEventListener("click", () => dequeue(i));
+    if (i == playlist_position) {
+      div.style.backgroundColor = "#222";
+    }
+    ui.playlist.appendChild(div);
+  }
+}
+playlist_redraw();
+
+function playlistToggle() {
+  // TODO: Make tri-state toggle: collapsed, displayed (height:21vh), expanded (height:100vh-playerheight)
+  if (ui.playlist.parentNode.style.display) {
+    ui.playlist.parentNode.style.display =  "";
+    ui.playlist_toggle.style.borderColor = "darkred";
+  } else {
+    ui.playlist.parentNode.style.display = "none";
+    ui.playlist_toggle.style.borderColor = null;
+  }
+}
+ui.playlist_toggle.addEventListener("click", playlistToggle);
+playlistToggle();
+
+/* ---------------- PLAYER ---------------- */
+
+function play_next() {
+  const next = playlist_position+1;
+  if (next < playlist.length) play_position(next);
+  else console.log("Playlist ended");
+}
+ui.audio.addEventListener("ended", play_next);
+
+/**
+ * Play position in playlist.
+ */
+function play_position(position) {
+  if (!Number.isInteger(position) || position < 0 || position > playlist.length-1) {
+    console.warn("Play position is outside playlist range", position);
+    return;
+  }
+  playlist_position = position;
+  localStorage.playlist_position = playlist_position;
+  playlist_redraw();
+  ui.playlist.children[position].scrollIntoView({behavior:"smooth"});
+  const track = playlist[position];
+  console.log('Playing playlist position', position, track);
+  play_url(track.url);
+}
+async function play_url(url) {
+  // TODO: Extract load logic into function `load_url(url)` ?
+  ui.play.innerHTML = "⌛";
   ui.trackname.innerHTML = '♪ Loading track...'
-  window.scrollTo({top: 0, behavior: 'smooth'});
 
   console.debug('Loading info for URL', url);
   const info_res = await fetch(`${API_URL}/info?url=${encodeURIComponent(url)}`)
   const info = await info_res.json();
-  current_track_info = info;
   ui.trackname.innerHTML = escapeHTML(info.title || 'Unknown track name');
   //document.title = `YT Audio - ${ui.trackname.innerHTML}`;
 
@@ -333,17 +458,24 @@ async function play(url) {
     ui.audio.src = proxy_url;
     await ui.audio.play();
   } catch(e) {
+    if (e.name == "AbortError") return;  // skip user aborted error
     alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
     ui.trackname.innerHTML = '';
     throw(e);
   }
 }
 
-// Playback: toggle play/pause, fast-forward, fast-reverse
 function playToggle() {
   if (ui.play.disabled) return;
+  const audio_loaded = ui.audio.readyState >= 4;
   if (ui.audio.paused) {
-    ui.audio.play();
+    if (audio_loaded) {
+      ui.audio.play();  // if audio is loaded, then play the audio
+    } else if (playlist.length) {
+      play_position(playlist_position);  // if no audio is loaded, then play the position in playlist
+    } else {
+      alert("𝄞 Please search for music to play !");  // if nothing to play
+    }
   } else {
     ui.audio.pause();
   }
@@ -361,7 +493,7 @@ ui.play_rev.addEventListener("click", playRev);
 // Update playback time & progress bar
 ui.audio.addEventListener("timeupdate", () => {
   const current = ui.audio.currentTime;
-  const duration = get_duration();
+  const duration = get_track_duration();
 
   ui.time_current.textContent = formatTime(current);
   ui.time_total.textContent = formatTime(duration);
@@ -372,7 +504,6 @@ ui.audio.addEventListener("timeupdate", () => {
 
 // Handle play button enable/disable state and icon
 function playEnable(enable) {
-  if (enable === null) enable = true;
   if (enable) {
     const icon = ui.audio.paused ? "⏸︎" : "▶︎";
     ui.play.innerHTML = icon;
@@ -382,7 +513,7 @@ function playEnable(enable) {
     ui.play.disabled = true;
   }
 }
-playEnable(false);  // Initalize as disabled
+playEnable(true);  // Initalize as enabled
 ui.audio.addEventListener("canplay", () => playEnable(true));
 ui.audio.addEventListener("loadstart", () => playEnable(false));
 ui.audio.addEventListener("waiting", () => playEnable(false));
@@ -391,8 +522,7 @@ ui.audio.addEventListener("pause", () => playEnable(true));
 
 // Track duration progress bar
 ui.audio.addEventListener("progress", () => {
-  // FIXME: Display seems broken.
-  const duration = get_duration();
+  const duration = get_track_duration();
   if (ui.audio.buffered.length > 0 && duration > 0) {
 
     const bufferedEnd = ui.audio.buffered.end(ui.audio.buffered.length - 1);
@@ -405,7 +535,7 @@ ui.audio.addEventListener("progress", () => {
 // Track seeking on progress bar
 function handleSeek(clientX) {
   if (!ui.audio.duration) return;
-  const duration = get_duration();
+  const duration = get_track_duration();
   const rect = ui.progressBar.getBoundingClientRect();
   const ratio = (clientX - rect.left) / rect.width;
   const targetTime = ratio * (duration);
@@ -419,7 +549,7 @@ ui.progressBar.addEventListener("touchstart", (e) => handleSeek(e.touches[0].cli
 
 document.addEventListener("keydown", (e) => {
   
-  if (["INPUT", "BUTTON"].includes(e.target.tagName)) return;
+  if (["INPUT"].includes(e.target.tagName)) return;
 
   let preventDefault = true;
   if      (e.code == "Space")      playToggle();
@@ -437,6 +567,7 @@ ui.audio.addEventListener("loadedmetadata", () => console.log("metadata loaded")
 ui.audio.addEventListener("canplay", () => console.log("can play"));
 ui.audio.addEventListener("waiting", () => console.log("waiting"));
 ui.audio.addEventListener("stalled", () => console.log("stalled"));
+ui.audio.addEventListener("ended", (e) => console.log("ended", e));
 
 </script>
 
