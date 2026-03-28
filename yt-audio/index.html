@@ -79,6 +79,11 @@
       overflow-y: auto;  /* allow results scroll */
     }
 
+    .ghost {
+      border-color: transparent;
+      background: none;
+    }
+
     /* Specific components styling */
 
     .app {
@@ -387,6 +392,7 @@ function playlist_redraw() {
     div.querySelector("button.playlist-remove").addEventListener("click", () => dequeue(i));
     if (i == playlist_position) {
       div.style.backgroundColor = "#222";
+      div.querySelector("button.playlist-play").classList.add('ghost');
     }
     ui.playlist.appendChild(div);
   }
