@@ -481,9 +481,12 @@ async function play_url(url) {
   ui.trackname.innerHTML = escapeHTML(info.title || 'Unknown track name');
 
   // Re-save track info in playlist (for direct URL play, and bandcamp search results missing duration)
-  playlist[playlist_get_position_by_url(url)] = info;
-  localStorage.playlist = JSON.stringify(playlist);
-  playlist_redraw();
+  playlist_track = playlist[playlist_get_position_by_url(url)];
+  if (playlist_track) {
+    playlist_track.duration = info.duration;
+    localStorage.playlist = JSON.stringify(playlist);
+    playlist_redraw();
+  }
 
   // Play direct URL
   try {
