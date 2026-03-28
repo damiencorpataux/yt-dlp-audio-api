@@ -13,6 +13,13 @@
 
     :root {
       --color-text: #ccc;
+      --color-mute: gray;
+      --color-accent: #4da3ff;
+      --color-highlight: darkred;
+      --color-bg: #141414;
+      --color-panel: #222;
+      --color-border: #333;
+      --radius: 4px;
     }
 
     html, body {
@@ -22,7 +29,7 @@
 
     body {
       padding: 20px;
-      background: #141414;
+      background: var(--color-bg);
       color: var(--color-text);
       font-family: system-ui, -apple-system, sans-serif;
     }
@@ -31,35 +38,35 @@
       margin: 20px 0;
       border: none;
       height: 1px;
-      background-color: #222;
+      background-color: var(--color-panel);
     }
 
     input, button {
-      background: #1a1d24;
+      background: var(--color-panel);
       color: var(--color-text);
-      border: 1px solid #333;
-      border-radius: 4px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
       padding: 6px;
     }
     input:focus {
       color: white;
       outline: none !important;
-      box-shadow: 0 0 16px #444;
+      /* box-shadow: 0 0 16px var(--color-accent); */
     }
     button {
       cursor: pointer;
     }
     button:active {
-      background-color: darkred;
+      background-color: var(--color-highlight);
     }
 
     a {
-      color: #4da3ff;
+      color: var(--color-accent);
       text-decoration: none;
     }
 
     img {
-      border-radius: 4px;
+      border-radius: var(--radius);
     }
 
     p {
@@ -79,6 +86,10 @@
       overflow-y: auto;  /* allow results scroll */
     }
 
+    .active {
+      border-color: var(--color-highlight);
+    }
+
     /* Specific components styling */
 
     .app {
@@ -90,6 +101,11 @@
     .header {
       min-width: 0; /* necessary for #trackname overflow */
     }
+    .header h1 {
+      font-size: 24px;
+      color: var(--color-mute);
+    }
+
     #trackname {
       min-height: 1lh;
       white-space: nowrap;
@@ -98,11 +114,15 @@
     }
 
     .playlist-item {
-      border-radius: 4px;
+      font-size: 85%;
       margin-bottom: 4px;
+      border-radius: var(--radius);
+    }
+    .playlist-item .duration {
+      color: var(--color-mute);
     }
     .playlist-item.current-position {
-      background-color: #222;
+      background-color: var(--color-border);
       border-color: transparent;
     }
     .playlist-item.current-position button.playlist-play{
@@ -111,14 +131,14 @@
     }
 
     .result-item {
-      margin-bottom: 16px;
       font-size: 85%;
+      margin-bottom: 16px;
       gap: 18px;
     }
     .result-item:hover,
     .playlist-item:hover {
-      background: #1a1a1a;
-      border-radius: 4px;
+      background: var(--color-panel);
+      border-radius: var(--radius);
     }
     .result-item img.thumbnail {
       width: 120px;
@@ -128,38 +148,38 @@
       height: 24px;
       border-radius: 50%;
       padding: 0;
-      opacity: .5;
+      opacity: .66;
     }
     .result-item button.result-play {
       position: absolute;
       bottom: 2px;
       right: 2px;
-      background-color: darkred;
+      background-color: var(--color-highlight);
     }
     .result-item button.result-enqueue {
       position: absolute;
       bottom: 2px;
       left: 2px;
-      background-color: #333;
+      background-color: var(--color-border);
     }
 
     .progress {
       height: 10px;
-      border-radius: 4px;
-      background: #222;
+      border-radius: var(--radius);
+      background: var(--color-panel);
       position: relative;
       cursor: pointer;
     }
     .progress .buffered {
       position: absolute;
       height: 100%;
-      background: #444;
+      background: var(--color-border);
       width: 0%;
     }
     .progress .played {
       position: absolute;
       height: 100%;
-      background: #4da3ff;
+      background: var(--color-accent);
       width: 0%;
     }
 
@@ -185,7 +205,7 @@
   <div class="header">
     <!-- HEADER -->
     <div class="row" style="align-items:center">
-      <h1 style="font-size: 24px; color: gray; margin-top:0">
+      <h1 style="margin-top:0">
         <span>🎧</span>
         <span>YT Audio</span>
       </h1>
@@ -202,7 +222,7 @@
     <!-- PLAYER -->
     <div class="row" style="align-items:center; gap:24px; margin-bottom:12px">
       <span id="trackname" style="flex:1;margin-left:16px"></span>
-      <button id="playlist-toggle">
+      <button id="playlist-toggle" class="active">
         ≡
       </button>
     </div>
@@ -292,7 +312,8 @@ async function search() {
 
   // 🔥 Direct play if URL
   if (isURL(q)) {
-    play_url(q);
+    // play_url(q);                             // do not save in playlist
+    play_position(playlist_enqueue({url: q}));  // do save in playlist
     return;
   }
 
@@ -371,7 +392,7 @@ function playlist_enqueue(track) {
     if (track) playlist.push(track);
     localStorage.playlist = JSON.stringify(playlist);
     playlist_redraw();
-    return playlist.length;
+    return playlist.length-1;
   }
 }
 
@@ -393,9 +414,11 @@ function playlist_redraw() {
         <button class="playlist-play">▶︎</button>
         <img width="24px" src="${track.thumbnail}">
         <span style="flex:1">
-        ${track.title}
-        ${(track.duration) ? formatTime(track.duration) : ''}
+          ${track.title}
         </span>
+          <span class="duration">
+            ${(track.duration) ? formatTime(track.duration) : ''}
+          </span>
         <button class="playlist-remove" style="margin-right:12px">╳</button>
       </div>
     `;
@@ -415,11 +438,11 @@ function playlist_toggle() {
   // TODO: Make tri-state toggle: collapsed, displayed (height:21vh), expanded (height:100vh-playerheight)
   if (ui.playlist.parentNode.style.display) {
     ui.playlist.parentNode.style.display =  "";
-    ui.playlist_toggle.style.borderColor = "darkred";
+    ui.playlist_toggle.classList.add("active");
     localStorage.playlist_visible = 1;
   } else {
     ui.playlist.parentNode.style.display = "none";
-    ui.playlist_toggle.style.borderColor = null;
+    ui.playlist_toggle.classList.remove("active");
     localStorage.playlist_visible = 0;
   }
 }
@@ -457,9 +480,15 @@ async function play_url(url) {
   const info = await info_res.json();
   ui.trackname.innerHTML = escapeHTML(info.title || 'Unknown track name');
 
-  playlist_track = playlist[playlist_get_position_by_url(url)];
-  if (playlist_track) {
-    playlist_track.duration = info.duration;  // save duration in playlist (for bandcamp search results missing duration)
+  // const playlist_track = playlist[playlist_get_position_by_url(url)];
+  // if (playlist_track) {
+  //   playlist_track.duration = info.duration;  // save duration in playlist (for bandcamp search results missing duration)
+  //   localStorage.playlist = JSON.stringify(playlist);
+  //   playlist_redraw();
+  // }
+  // re-save track info in playlist (for direct URL play, and bandcamp search results missing duration)  const playlist_position = playlist[playlist_get_position_by_url(url)];
+  if (playlist_position) {
+    playlist[playlist_position] = info;
     localStorage.playlist = JSON.stringify(playlist);
     playlist_redraw();
   }
