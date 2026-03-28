@@ -87,7 +87,7 @@ def strip_ytdlp_info(info):
 
 app = FastAPI(
     title="YT Audio API",
-    summary="A minimalistic API to yt-dlp (audio only)"
+    summary="A minimalistic audio REST API to yt-dlp"
 )
 
 @app.get("/")
@@ -108,7 +108,8 @@ def info(url: str, nostrip: bool = False):
 @app.get("/stream")
 def stream(request: Request, url: str):
     """
-    Stream audio, with range support.
+    Stream audio, with support of headers `Range` and `Content-Length`.
+    Note: whenever possible, use direct stream of key `url` from route `/info`.
     """
     try:
         info = get_audio_info(url)
@@ -156,7 +157,7 @@ import subprocess
 @app.get("/stream/mp3")
 def stream_mp3(request: Request, url: str):
     """
-    Stream audio transcoded to mp3, without range support.
+    Stream audio transcoded to mp3, without support of headers `Range` and `Content-Length`.
     """
     try:
         info = get_audio_info(url)
