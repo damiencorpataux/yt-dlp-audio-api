@@ -82,10 +82,6 @@
       gap: 8px;
     }
 
-    .scroll-pane {
-      overflow-y: auto;  /* allow results scroll */
-    }
-
     .active {
       border-color: var(--color-highlight);
     }
@@ -241,12 +237,12 @@
     </div>
     <hr>
     <div id="playlist-container">
-      <div id="playlist" style="min-height:0; max-height:21vh; overflow:scroll"></div>
+      <div id="playlist" style="min-height:0; max-height:21vh; overflow:scroll; ; scrollbar-width:none"></div>
       <hr>
     </div>
   </div>
 
-  <div class="scroll-pane">
+  <div style="overflow-y:auto; scrollbar-width:none">
     <!-- SEARCH -->
     <form class="row" style="margin-bottom:8px" onsubmit="search(); return false;">
       <input id="searchInput" autofocus placeholder="♪ Search or paste URL" style="flex:1">
@@ -285,6 +281,13 @@ const ui = {
 function get_track_duration() {
   // NOTE: In Chrome, ui.audio.duration is Infinity without Content-Length, ie. when using route /stream/mp3.
   return isFinite(ui.audio.duration) ? ui.audio.duration : playlist[playlist_position]?.duration;
+}
+
+function get_provider_image(provider) {
+  return {
+    'bandcamp': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Bandcamp-button-bc-circle-green.svg/960px-Bandcamp-button-bc-circle-green.svg.png',
+    'youtube': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1280px-YouTube_full-color_icon_%282024%29.svg.png'
+  }[provider] || 'default_url';  // FIXME
 }
 
 function formatTime(t, fallback) {
@@ -351,12 +354,7 @@ async function search() {
         <p><strong>${escapeHTML(track.title)}</strong></p>
         <p>${formatTime(track.duration, '-')}</p>
         <p>
-          <img width="16px" alt="${track.provider}" src="${
-            {
-              'bandcamp': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Bandcamp-button-bc-circle-green.svg/960px-Bandcamp-button-bc-circle-green.svg.png',
-              'youtube': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1280px-YouTube_full-color_icon_%282024%29.svg.png'
-            }[track.provider] || 'default_url'
-          }">
+          <img width="16px" alt="${track.provider}" src="${get_provider_image(track.provider)}">
           ${escapeHTML(track.channel)}
         </p>
       </div>
@@ -417,7 +415,8 @@ function playlist_redraw() {
           <span class="duration">
             ${(track.duration) ? formatTime(track.duration) : ''}
           </span>
-        <button class="playlist-remove" style="margin-right:12px">╳</button>
+        <img style="width:16px" src="${get_provider_image(track.provider)}">
+        <button class="playlist-remove">╳</button>
       </div>
     `;
     div.querySelector("button.playlist-play").addEventListener("click", () => play_position(i));
