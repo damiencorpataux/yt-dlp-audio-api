@@ -333,9 +333,7 @@ async function search() {
     ui.search.blur();
   }
 
-  ui.search.value = "";
   ui.results.innerHTML = "";
-
   data.results.forEach(track => {
     const div = document.createElement("div");
     div.className = "result-item row";
