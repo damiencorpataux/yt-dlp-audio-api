@@ -79,11 +79,6 @@
       overflow-y: auto;  /* allow results scroll */
     }
 
-    .ghost {
-      border-color: transparent;
-      background: none;
-    }
-
     /* Specific components styling */
 
     .app {
@@ -102,32 +97,46 @@
       scrollbar-width: none;
     }
 
-    #results .result-item {
-      margin-bottom: 32px;
+    .playlist-item {
+      border-radius: 4px;
+      margin-bottom: 4px;
+    }
+    .playlist-item.current-position {
+      background-color: #222;
+      border-color: transparent;
+    }
+    .playlist-item.current-position button.playlist-play{
+      border: transparent;
+      background: none;
+    }
+
+    .result-item {
+      margin-bottom: 16px;
       font-size: 85%;
-      align-items: flex-start;
       gap: 18px;
     }
-    #results .result-item:hover img {
-      filter: brightness(0.7);
+    .result-item:hover,
+    .playlist-item:hover {
+      background: #1a1a1a;
+      border-radius: 4px;
     }
-    #results .result-item img.thumbnail {
+    .result-item img.thumbnail {
       width: 120px;
     }
-    #results .result-item button {
+    .result-item button {
       width: 24px;
       height: 24px;
       border-radius: 50%;
       padding: 0;
       opacity: .5;
     }
-    #results .result-item button.result-play {
+    .result-item button.result-play {
       position: absolute;
       bottom: 2px;
       right: 2px;
       background-color: darkred;
     }
-    #results .result-item button.result-enqueue {
+    .result-item button.result-enqueue {
       position: absolute;
       bottom: 2px;
       left: 2px;
@@ -164,7 +173,7 @@
       h1, button {
         font-size: 80% !important;
       }
-      #results .result-item img.thumbnail {
+      .result-item img.thumbnail {
         width: 80px;
       }
     }
@@ -283,7 +292,6 @@ async function search() {
 
   // 🔥 Direct play if URL
   if (isURL(q)) {
-    ui.results.innerHTML = `🎶 Playing <q>${q}</q>...`;
     play_url(q);
     return;
   }
@@ -309,10 +317,9 @@ async function search() {
 
   data.results.forEach(track => {
     const div = document.createElement("div");
-    div.className = "row result-item";
-
+    div.className = "result-item row";
     div.innerHTML = `
-      <div style="position:relative; display:inline-block;">
+      <div style="position:relative">
         <img class="thumbnail" src="${track.thumbnail}" style="display:block">
         <button class="result-play" style="position:absolute; bottom:2px; right:2px">
           ▶︎
@@ -336,8 +343,8 @@ async function search() {
       </div>
     `;
 
-    div.querySelector("button.result-play").onclick = () => play_position(enqueue(track));
-    div.querySelector("button.result-enqueue").onclick = () => enqueue(track);
+    div.querySelector("button.result-play").onclick = () => play_position(playlist_enqueue(track));
+    div.querySelector("button.result-enqueue").onclick = () => playlist_enqueue(track);
 
     ui.results.appendChild(div);
   });
@@ -345,26 +352,30 @@ async function search() {
 
 /* --------------- PLAYLIST --------------- */
 
-let playlist_position = parseInt(localStorage.playlist_position) || 0;  // Private
 const playlist = JSON.parse(localStorage.playlist || null) || [];
+let playlist_position = parseInt(localStorage.playlist_position) || 0;  // Private
 // const playlist = [{"url":"https://songforberta.bandcamp.com/track/song-for-berta-unmixed-demo","title":"Song for Berta - Unmixed Demo","channel":"by Damien Rice, JFDR, Sandrayati Fay","thumbnail":"https://f4.bcbits.com/img/a2705409571_7.jpg","description":"tags:Acoustic,Honduras,acoustic","duration":null,"provider":"bandcamp"},{"url":"https://marcgartman.bandcamp.com/track/damien","title":"DAMIEN","channel":"by DAMIEN","thumbnail":"https://f4.bcbits.com/img/a2686841425_7.jpg","description":"tags:electronic,acoustic,UnitedStates,bedroom-pop,popelectronic,singersongwriter;folk,Minnesota,Rock,Duluth","duration":null,"provider":"bandcamp"},{"url":"https://onnset.bandcamp.com/track/damien-schneider-seti-ansome-remix","title":"Damien Schneider - Seti (Ansome Remix)","channel":"from ONNST003 - Damien Schneider - Seti EP (Ansome Remix) by Damien Schneider","thumbnail":"https://f4.bcbits.com/img/a2602295058_7.jpg","description":"","duration":null,"provider":"bandcamp"}];
 
-function enqueue(track) {
-  // If track is already in playlist, don't add it and simply scroll playlist to the track
-  for (const [i, playlist_track] of playlist.entries()) {
-    if (playlist_track.url == track.url) {
-      ui.playlist.children[i].scrollIntoView({behavior:"smooth"});
-      // FIXME: Move to existing track to last position of playlist, to avoid jumping back on playlist ?
-      return i;
-    }
-  }
-  // Else append track to playlist
-  if (track) playlist.push(track);
-  localStorage.playlist = JSON.stringify(playlist);
-  playlist_redraw();
-  return playlist.length;
+function playlist_get_position_by_url(url) {
+  for (const [position, track] of playlist.entries()) if (track.url == url) return position;
 }
-function dequeue(position) {
+
+function playlist_enqueue(track) {
+  if (!parseInt(localStorage.playlist_visible)) playlist_toggle();
+  const position = playlist_get_position_by_url(track.url);
+  if (position !== undefined) {
+    ui.playlist.children[position].scrollIntoView({behavior:"smooth"});
+    return position;
+  } else {
+    // append track to playlist
+    if (track) playlist.push(track);
+    localStorage.playlist = JSON.stringify(playlist);
+    playlist_redraw();
+    return playlist.length;
+  }
+}
+
+function playlist_dequeue(position) {
   if (!Number.isInteger(position)) return;
   if (confirm("Remove track from playlist ?")) {
     playlist.splice(position, 1);
@@ -378,55 +389,53 @@ function playlist_redraw() {
   for (const [i, track] of playlist.entries()) {
     const div = document.createElement("div");
     div.innerHTML += `
-      <p class="row" style="gap:12px; align-items:center; cursor:pointer">
+      <div class="playlist-item row" style="gap:12px; align-items:center">
         <button class="playlist-play">▶︎</button>
         <img width="24px" src="${track.thumbnail}">
         <span style="flex:1">
         ${track.title}
         ${(track.duration) ? formatTime(track.duration) : ''}
         </span>
-        <button class="playlist-remove">╳</button>
-      </p>
+        <button class="playlist-remove" style="margin-right:12px">╳</button>
+      </div>
     `;
     div.querySelector("button.playlist-play").addEventListener("click", () => play_position(i));
-    div.querySelector("button.playlist-remove").addEventListener("click", () => dequeue(i));
+    div.querySelector("button.playlist-remove").addEventListener("click", () => playlist_dequeue(i));
     if (i == playlist_position) {
-      div.style.backgroundColor = "#222";
-      div.querySelector("button.playlist-play").classList.add('ghost');
+      div.querySelector("div").classList.add("current-position");
     }
+
     ui.playlist.appendChild(div);
   }
 }
 playlist_redraw();
 
-function playlistToggle() {
+// Playlist display toggle
+function playlist_toggle() {
   // TODO: Make tri-state toggle: collapsed, displayed (height:21vh), expanded (height:100vh-playerheight)
   if (ui.playlist.parentNode.style.display) {
     ui.playlist.parentNode.style.display =  "";
     ui.playlist_toggle.style.borderColor = "darkred";
+    localStorage.playlist_visible = 1;
   } else {
     ui.playlist.parentNode.style.display = "none";
     ui.playlist_toggle.style.borderColor = null;
+    localStorage.playlist_visible = 0;
   }
 }
-ui.playlist_toggle.addEventListener("click", playlistToggle);
-playlistToggle();
+ui.playlist_toggle.addEventListener("click", playlist_toggle);
+if (!parseInt(localStorage.playlist_visible)) {
+  playlist_toggle();
+}
 
 /* ---------------- PLAYER ---------------- */
 
-function play_next() {
-  const next = playlist_position+1;
-  if (next < playlist.length) play_position(next);
-  else console.log("Playlist ended");
-}
-ui.audio.addEventListener("ended", play_next);
-
 /**
- * Play position in playlist.
+ * Play position in playlist. Main entry point for playing.
  */
 function play_position(position) {
   if (!Number.isInteger(position) || position < 0 || position > playlist.length-1) {
-    console.warn("Play position is outside playlist range", position);
+    console.error("Play position is outside playlist range", position);
     return;
   }
   playlist_position = position;
@@ -437,6 +446,7 @@ function play_position(position) {
   console.log('Playing playlist position', position, track);
   play_url(track.url);
 }
+
 async function play_url(url) {
   // TODO: Extract load logic into function `load_url(url)` ?
   ui.play.innerHTML = "⌛";
@@ -446,7 +456,13 @@ async function play_url(url) {
   const info_res = await fetch(`${API_URL}/info?url=${encodeURIComponent(url)}`)
   const info = await info_res.json();
   ui.trackname.innerHTML = escapeHTML(info.title || 'Unknown track name');
-  //document.title = `YT Audio - ${ui.trackname.innerHTML}`;
+
+  playlist_track = playlist[playlist_get_position_by_url(url)];
+  if (playlist_track) {
+    playlist_track.duration = info.duration;  // save duration in playlist (for bandcamp search results missing duration)
+    localStorage.playlist = JSON.stringify(playlist);
+    playlist_redraw();
+  }
 
   // Play direct URL
   try {
@@ -472,7 +488,8 @@ async function play_url(url) {
   }
 }
 
-function playToggle() {
+// Playback buttons (play/pause, ffwd, rev)
+function play_toggle() {
   if (ui.play.disabled) return;
   const audio_loaded = ui.audio.readyState >= 4;
   if (ui.audio.paused) {
@@ -487,17 +504,43 @@ function playToggle() {
     ui.audio.pause();
   }
 }
-function playFfwd() {
+function play_ffwd() {
   ui.audio.currentTime += 5;
 }
-function playRev() {
+function play_rev() {
   ui.audio.currentTime -= 5;
 }
-ui.play.addEventListener("click", playToggle);
-ui.play_ffwd.addEventListener("click", playFfwd);
-ui.play_rev.addEventListener("click", playRev);
+ui.play.addEventListener("click", play_toggle);
+ui.play_ffwd.addEventListener("click", play_ffwd);
+ui.play_rev.addEventListener("click", play_rev);
 
-// Update playback time & progress bar
+// Enable/disable state and icon of play button
+function play_enable(enable) {
+  if (enable) {
+    const icon = ui.audio.paused ? "⏸︎" : "▶︎";
+    ui.play.innerHTML = icon;
+    ui.play.disabled = false;
+  } else {
+    ui.play.innerHTML = "⌛";
+    ui.play.disabled = true;
+  }
+}
+play_enable(true);  // Initalize as enabled
+ui.audio.addEventListener("canplay", () => play_enable(true));
+ui.audio.addEventListener("loadstart", () => play_enable(false));
+ui.audio.addEventListener("waiting", () => play_enable(false));
+ui.audio.addEventListener("play", () => play_enable(true));
+ui.audio.addEventListener("pause", () => play_enable(true));
+
+// Play next track in playlist (on track end)
+function play_next() {
+  const next = playlist_position+1;
+  if (next < playlist.length) play_position(next);
+  else console.log("Playlist ended");
+}
+ui.audio.addEventListener("ended", play_next);
+
+// Display of track playback time & progress bar
 ui.audio.addEventListener("timeupdate", () => {
   const current = ui.audio.currentTime;
   const duration = get_track_duration();
@@ -508,26 +551,6 @@ ui.audio.addEventListener("timeupdate", () => {
     ui.playedBar.style.width = (current / duration * 100) + "%";
   }
 });
-
-// Handle play button enable/disable state and icon
-function playEnable(enable) {
-  if (enable) {
-    const icon = ui.audio.paused ? "⏸︎" : "▶︎";
-    ui.play.innerHTML = icon;
-    ui.play.disabled = false;
-  } else {
-    ui.play.innerHTML = "⌛";
-    ui.play.disabled = true;
-  }
-}
-playEnable(true);  // Initalize as enabled
-ui.audio.addEventListener("canplay", () => playEnable(true));
-ui.audio.addEventListener("loadstart", () => playEnable(false));
-ui.audio.addEventListener("waiting", () => playEnable(false));
-ui.audio.addEventListener("play", () => playEnable(true));
-ui.audio.addEventListener("pause", () => playEnable(true));
-
-// Track duration progress bar
 ui.audio.addEventListener("progress", () => {
   const duration = get_track_duration();
   if (ui.audio.buffered.length > 0 && duration > 0) {
@@ -540,7 +563,7 @@ ui.audio.addEventListener("progress", () => {
 });
 
 // Track seeking on progress bar
-function handleSeek(clientX) {
+function play_seek(clientX) {
   if (!ui.audio.duration) return;
   const duration = get_track_duration();
   const rect = ui.progressBar.getBoundingClientRect();
@@ -549,19 +572,19 @@ function handleSeek(clientX) {
   console.log("Seeking to", targetTime)
   ui.audio.currentTime = targetTime;
 }
-ui.progressBar.addEventListener("click", (e) => handleSeek(e.clientX));  // Desktop
-ui.progressBar.addEventListener("touchstart", (e) => handleSeek(e.touches[0].clientX));  // Mobile
+ui.progressBar.addEventListener("click", (e) => play_seek(e.clientX));  // Desktop
+ui.progressBar.addEventListener("touchstart", (e) => play_seek(e.touches[0].clientX));  // Mobile
 
 /* ---------------- HOTKEYS ---------------- */
 
 document.addEventListener("keydown", (e) => {
-  
+
   if (["INPUT"].includes(e.target.tagName)) return;
 
   let preventDefault = true;
-  if      (e.code == "Space")      playToggle();
-  else if (e.code == "ArrowRight") playFfwd();
-  else if (e.code == "ArrowLeft")  playRev();
+  if      (e.code == "Space")      play_toggle();
+  else if (e.code == "ArrowRight") play_ffwd();
+  else if (e.code == "ArrowLeft")  play_rev();
   else preventDefault = false;
 
   if (preventDefault) e.preventDefault();
