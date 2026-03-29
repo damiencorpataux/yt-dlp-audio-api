@@ -83,7 +83,7 @@ def search_youtube(query: str):
     return search_ytdlp(query, provider="ytsearch10")
 
 def search_soundcloud(query: str):
-    return search_ytdlp(query, provider="ytsearch10")
+    return search_ytdlp(query, provider="bcsearch10")
 
 def search_ytdlp(query: str, provider="ytsearch10"):
     ydl_opts = {
