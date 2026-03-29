@@ -1,10 +1,13 @@
 from difflib import SequenceMatcher
 import re
+import math
 
+DURATION_OPTIMAL = 300  # 5 minutes
+DURATION_SIGMA = 300    # spread (~5 min)
 PROVIDER_WEIGHT = {
-    "bandcamp": 1.0,      # high quality, official
-    "soundcloud": 0.9,    # good but noisy
-    "youtube": 0.8,       # many reuploads
+    "bandcamp": 1.0,    # high quality, official
+    "soundcloud": 0.9,  # good but noisy
+    "youtube": 0.8,     # many reuploads
 }
 
 def rank(query, results):
@@ -37,15 +40,37 @@ def bonus(title):
         return +8
     return 0
 
+def duration_score(duration, text_match_score, provider):
+    if not duration:
+        if provider == "bandcamp":
+            return 8 * (text_match_score / 100)
+        return 0
+
+    diff = duration - DURATION_OPTIMAL
+    gauss = math.exp(-(diff ** 2) / (2 * DURATION_SIGMA ** 2))
+
+    base_score = (gauss * 35) - 20
+    weight = (text_match_score / 100)
+
+    return base_score * weight
+
 def score_result(query, result):
     title = result.get("title", "")
     provider = result.get("provider", "")
+    duration = result.get("duration")  # seconds
 
     score = 0
-    score += text_score(query, title)            # Text similarity
-    score *= PROVIDER_WEIGHT.get(provider, 0.5)  # Provider weight
-    score += bonus(title)                        # Heuristics
+
+    # Text similarity
+    t_score = text_score(query, title)
+    score += t_score
+    # Provider weight
+    score *= PROVIDER_WEIGHT.get(provider, 0.5)
+    # Heuristics
+    score += bonus(title)
     score += penalty(title)
+    # Duration (NEW)
+    score += duration_score(duration, t_score, provider)
 
     return score
 
