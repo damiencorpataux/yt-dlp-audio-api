@@ -32,10 +32,11 @@
       background: var(--color-bg);
       color: var(--color-text);
       font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
     }
 
     hr {
-      margin: 20px 0;
+      margin: 16px 0;
       border: none;
       height: 1px;
       background-color: var(--color-panel);
@@ -91,7 +92,7 @@
     .app {
       display: grid;
       grid-template-rows: auto 1fr;  /* explicit rows */
-      height: calc(100dvh - 40px);
+      height: calc(100dvh - 20px);
     }
 
     .header {
@@ -107,10 +108,11 @@
       white-space: nowrap;
       overflow: scroll;
       scrollbar-width: none;
+      background-color: var(--color-panel);
+      border-radius: var(--radius);
     }
 
     .playlist-item {
-      font-size: 85%;
       margin-bottom: 4px;
       border-radius: var(--radius);
     }
@@ -127,7 +129,7 @@
     }
 
     .result-item {
-      font-size: 85%;
+      /* font-size: 85%; */
       padding: 8px;
       gap: 18px;
     }
@@ -183,14 +185,16 @@
 
     @media (max-width: 420px) {
       body {
-        font-size: 90%;
-        padding: 10px;
+        padding: 6px;
       }
-      h1, button {
-        font-size: 80% !important;
+      body, input, button {
+        font-size: 12px;
+      }
+      .header h1 {
+        font-size: 16px;
       }
       .result-item img.thumbnail {
-        width: 80px;
+        width: 75px;
       }
     }
   </style>
@@ -215,13 +219,16 @@
       -->
     </div>
 
-    <!-- PLAYER -->
-    <div class="row" style="align-items:center; gap:24px; margin-bottom:12px">
-      <span id="trackname" style="flex:1;margin-left:16px"></span>
+    <!-- PLAYER TRACK NAME -->
+    <div class="row" style="align-items:center; gap: 16px; margin-bottom:8px">
+      <span id="trackname" style="flex:1; padding: 6px 6px 6px 12px">
+        Ready.
+      </span>
       <button id="playlist-toggle" class="active">
         ≡
       </button>
     </div>
+    <!-- PLAYER CONTROLS -->
     <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
       <div>
         <button id="play" style="width:36px">⌛</button>
@@ -236,8 +243,9 @@
       <span id="time_total" style="font-family:monospace">0:00</span>
     </div>
     <hr>
+    <!-- PLAYLIST -->
     <div id="playlist-container">
-      <div id="playlist" style="min-height:0; max-height:21vh; overflow:scroll; ; scrollbar-width:none"></div>
+      <div id="playlist" style="min-height:0; max-height:16vh; overflow:scroll; scrollbar-width:none"></div>
       <hr>
     </div>
   </div>
@@ -248,7 +256,6 @@
       <input id="searchInput" autofocus placeholder="♪ Search or paste URL" style="flex:1">
       <button>Search</button>
     </form>
-
     <!-- RESULTS -->
     <div id="results"></div>
   </div>
@@ -352,11 +359,11 @@ async function search() {
       </div>
       <div style="flex:1;">
         <p><strong>${escapeHTML(track.title)}</strong></p>
-        <p>${formatTime(track.duration, '-')}</p>
-        <p>
+        <p class="row">
+          <span style="flex:1">${escapeHTML(track.channel)}</span>
           <img width="16px" alt="${track.provider}" src="${get_provider_image(track.provider)}">
-          ${escapeHTML(track.channel)}
         </p>
+        <p style="color:var(--color-mute)">${formatTime(track.duration, '&nbsp;')}</p>
       </div>
     `;
 
@@ -378,7 +385,7 @@ function playlist_get_position_by_url(url) {
 }
 
 function playlist_enqueue(track) {
-  if (!parseInt(localStorage.playlist_visible)) playlist_toggle();
+  // if (!parseInt(localStorage.playlist_visible)) playlist_toggle();
   const position = playlist_get_position_by_url(track.url);
   if (position !== undefined) {
     ui.playlist.children[position].scrollIntoView({behavior:"smooth"});
