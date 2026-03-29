@@ -32,10 +32,11 @@
       background: var(--color-bg);
       color: var(--color-text);
       font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
     }
 
     hr {
-      margin: 20px 0;
+      margin: 16px 0;
       border: none;
       height: 1px;
       background-color: var(--color-panel);
@@ -82,10 +83,6 @@
       gap: 8px;
     }
 
-    .scroll-pane {
-      overflow-y: auto;  /* allow results scroll */
-    }
-
     .active {
       border-color: var(--color-highlight);
     }
@@ -111,10 +108,14 @@
       white-space: nowrap;
       overflow: scroll;
       scrollbar-width: none;
+      background-color: var(--color-panel);
+      border-radius: var(--radius);
     }
 
+    #playlist {
+      max-height:20vh;
+    }
     .playlist-item {
-      font-size: 85%;
       margin-bottom: 4px;
       border-radius: var(--radius);
     }
@@ -123,15 +124,18 @@
     }
     .playlist-item.current-position {
       background-color: var(--color-border);
-      border-color: transparent;
     }
     .playlist-item.current-position button.playlist-play{
-      border: transparent;
-      background: none;
+      border-color: transparent;
+    }
+    .playlist-item {
+      cursor: grab;
+    }
+    .playlist-item:active {
+      cursor: grabbing;
     }
 
     .result-item {
-      font-size: 85%;
       padding: 8px;
       gap: 18px;
     }
@@ -187,14 +191,16 @@
 
     @media (max-width: 420px) {
       body {
-        font-size: 90%;
-        padding: 10px;
+        padding: 6px;
       }
-      h1, button {
-        font-size: 80% !important;
+      body, input, button {
+        font-size: 12px;
+      }
+      .header h1 {
+        font-size: 16px;
       }
       .result-item img.thumbnail {
-        width: 80px;
+        width: 75px;
       }
     }
   </style>
@@ -204,28 +210,26 @@
 <div class="app">
   <div class="header">
     <!-- HEADER -->
-    <div class="row" style="align-items:center">
-      <h1 style="margin-top:0">
+    <div class="row" style="align-items:baseline">
+      <h1 style="margin-top:0; flex:1">
         <span>🎧</span>
         <span>YT Audio</span>
       </h1>
-      <!--
-      <div>
-        <a href="https://github.com/damiencorpataux/yt-dlp-audio-api">
-          <img height="15px" src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg">
-          Fork me
-        </a>
-      </div>
-      -->
+      <a href="https://github.com/damiencorpataux/yt-dlp-audio-api">
+        <img style="height:1lh; filter:brightness(2)" src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg">
+      </a>
     </div>
 
-    <!-- PLAYER -->
-    <div class="row" style="align-items:center; gap:24px; margin-bottom:12px">
-      <span id="trackname" style="flex:1;margin-left:16px"></span>
+    <!-- PLAYER TRACK NAME -->
+    <div class="row" style="align-items:center; gap: 16px; margin-bottom:8px">
+      <span id="trackname" style="flex:1; padding: 6px 6px 6px 12px">
+        Ready. Search. Play.
+      </span>
       <button id="playlist-toggle" class="active">
         ≡
       </button>
     </div>
+    <!-- PLAYER CONTROLS -->
     <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
       <div>
         <button id="play" style="width:36px">⌛</button>
@@ -240,19 +244,19 @@
       <span id="time_total" style="font-family:monospace">0:00</span>
     </div>
     <hr>
+    <!-- PLAYLIST -->
     <div id="playlist-container">
-      <div id="playlist" style="min-height:0; max-height:21vh; overflow:scroll"></div>
+      <div id="playlist" style="min-height:0; overflow:scroll"></div>
       <hr>
     </div>
   </div>
 
-  <div class="scroll-pane">
+  <div style="overflow-y:auto">
     <!-- SEARCH -->
     <form class="row" style="margin-bottom:8px" onsubmit="search(); return false;">
       <input id="searchInput" autofocus placeholder="♪ Search or paste URL" style="flex:1">
       <button>Search</button>
     </form>
-
     <!-- RESULTS -->
     <div id="results"></div>
   </div>
@@ -287,6 +291,14 @@ function get_track_duration() {
   return isFinite(ui.audio.duration) ? ui.audio.duration : playlist[playlist_position]?.duration;
 }
 
+function get_provider_image(provider) {
+  return {
+    'bandcamp': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Bandcamp-button-bc-circle-green.svg/960px-Bandcamp-button-bc-circle-green.svg.png',
+    'soundcloud': 'https://cdn-icons-png.flaticon.com/512/145/145809.png',
+    'youtube': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1280px-YouTube_full-color_icon_%282024%29.svg.png'
+  }[provider] || 'default_url';  // FIXME
+}
+
 function formatTime(t, fallback) {
   if (!isFinite(t) || t == null) return fallback || '?:??';
   const m = Math.floor(t / 60);
@@ -299,6 +311,29 @@ function escapeHTML(str) {
   div.appendChild(document.createTextNode(str));
   return div.textContent;
 }
+
+const SCROLL_EDGE_THRESHOLD = 16; // px from top/bottom
+const SCROLL_SPEED = 1;           // px per frame
+let autoScrollActive = false;
+document.addEventListener("dragover", (e) => {
+  // Scroll on drag (for playlist)
+  const container = ui.playlist;
+  const rect = container.getBoundingClientRect();
+  const offsetY = e.clientY - rect.top;
+  // Near top
+  if (offsetY < SCROLL_EDGE_THRESHOLD) {
+    container.scrollTop -= SCROLL_SPEED;
+    autoScrollActive = true;
+  }
+  // Near bottom
+  else if (offsetY > rect.height - SCROLL_EDGE_THRESHOLD) {
+    container.scrollTop += SCROLL_SPEED;
+    autoScrollActive = true;
+  } else {
+    autoScrollActive = false;
+  }
+});
+
 
 /* ---------------- SEARCH ---------------- */
 
@@ -333,9 +368,7 @@ async function search() {
     ui.search.blur();
   }
 
-  ui.search.value = "";
   ui.results.innerHTML = "";
-
   data.results.forEach(track => {
     const div = document.createElement("div");
     div.className = "result-item row";
@@ -351,17 +384,10 @@ async function search() {
       </div>
       <div style="flex:1;">
         <p><strong>${escapeHTML(track.title)}</strong></p>
-        <p>${formatTime(track.duration, '-')}</p>
-        <p>
-          <img width="16px" alt="${track.provider}" src="${
-            {
-              'bandcamp': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Bandcamp-button-bc-circle-green.svg/960px-Bandcamp-button-bc-circle-green.svg.png',
-              'youtube': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1280px-YouTube_full-color_icon_%282024%29.svg.png'
-            }[track.provider] || 'default_url'
-          }">
-          ${escapeHTML(track.channel)}
-        </p>
+        <p>${escapeHTML(track.channel)}</p>
+        <p style="color:var(--color-mute)">${formatTime(track.duration, '&nbsp;')}</p>
       </div>
+      <img style="align-self:center; width:24px;" alt="${track.provider}" src="${get_provider_image(track.provider)}">
     `;
 
     div.querySelector("button.result-play").onclick = () => play_position(playlist_enqueue(track));
@@ -382,9 +408,10 @@ function playlist_get_position_by_url(url) {
 }
 
 function playlist_enqueue(track) {
-  if (!parseInt(localStorage.playlist_visible)) playlist_toggle();
+  // if (!parseInt(localStorage.playlist_visible)) playlist_toggle();
   const position = playlist_get_position_by_url(track.url);
   if (position !== undefined) {
+    // TODO: Move track to end of playlist ?
     ui.playlist.children[position].scrollIntoView({behavior:"smooth"});
     return position;
   } else {
@@ -400,35 +427,58 @@ function playlist_dequeue(position) {
   if (!Number.isInteger(position)) return;
   if (confirm("Remove track from playlist ?")) {
     playlist.splice(position, 1);
+    if (position == playlist_position) playlist_position = null;
     localStorage.playlist = JSON.stringify(playlist);
+    localStorage.playlist_position = playlist_position;
     playlist_redraw();
   }
 }
 
+let dragIndex = null;
 function playlist_redraw() {
   ui.playlist.innerHTML = playlist.length ? '' : 'Playlist is empty. Just search and play some music !';
+
   for (const [i, track] of playlist.entries()) {
-    const div = document.createElement("div");
-    div.innerHTML += `
-      <div class="playlist-item row" style="gap:12px; align-items:center">
+    const wrapper = document.createElement("div");
+
+    wrapper.innerHTML = `
+      <div class="playlist-item row" draggable="true" style="gap:12px; align-items:center">
         <button class="playlist-play">▶︎</button>
         <img width="24px" src="${track.thumbnail}">
         <span style="flex:1">
           ${track.title}
         </span>
-          <span class="duration">
-            ${(track.duration) ? formatTime(track.duration) : ''}
-          </span>
-        <button class="playlist-remove" style="margin-right:12px">╳</button>
+        <span class="duration">
+          ${(track.duration) ? formatTime(track.duration) : ''}
+        </span>
+        <img style="width:16px" src="${get_provider_image(track.provider)}">
+        <button class="playlist-remove">╳</button>
       </div>
     `;
-    div.querySelector("button.playlist-play").addEventListener("click", () => play_position(i));
-    div.querySelector("button.playlist-remove").addEventListener("click", () => playlist_dequeue(i));
+
+    const item = wrapper.querySelector(".playlist-item");
+
+    // Highlight track currently playing
     if (i == playlist_position) {
-      div.querySelector("div").classList.add("current-position");
+      item.classList.add("current-position");
     }
 
-    ui.playlist.appendChild(div);
+    // Click events
+    wrapper.querySelector(".playlist-play").addEventListener("click", () => play_position(i));
+    wrapper.querySelector(".playlist-remove").addEventListener("click", () => playlist_dequeue(i));
+
+    // Drag events
+    item.addEventListener("dragstart", () => dragIndex = i);
+    item.addEventListener("dragover", (e) => e.preventDefault());  // REQUIRED for drop
+    item.addEventListener("drop", () => {
+      if (dragIndex === null || dragIndex === i) return;
+      const moved = playlist.splice(dragIndex, 1)[0];
+      playlist.splice(i, 0, moved);
+      dragIndex = null;
+      playlist_redraw();
+    });
+
+    ui.playlist.appendChild(wrapper);
   }
 }
 playlist_redraw();
@@ -544,9 +594,11 @@ function play_enable(enable) {
     const icon = ui.audio.paused ? "⏸︎" : "▶︎";
     ui.play.innerHTML = icon;
     ui.play.disabled = false;
+    ui.play.classList.remove("active");
   } else {
     ui.play.innerHTML = "⌛";
     ui.play.disabled = true;
+    ui.play.classList.add("active");
   }
 }
 play_enable(true);  // Initalize as enabled

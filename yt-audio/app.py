@@ -1,62 +1,42 @@
+import provider
+import ranking
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse, FileResponse
 import yt_dlp
-from bs4 import BeautifulSoup
 import requests
-import re
+import asyncio
 
-def run_search(query: str):
-    try: bandcamp = search_bandcamp(query)
-    except: bandcamp = []
+# Search
 
-    try: youtube = search_youtube(query)
-    except: youtube = []
-
-    # Add provider key
-    return [
-        *[{**result, **{"provider": "bandcamp"}} for result in bandcamp],
-        *[{**result, **{"provider": "youtube"}} for result in youtube]
-    ]
-
-def search_bandcamp(query):
-    url = f"https://bandcamp.com/search?item_type=t&q={query}"
-    html = requests.get(url).text
-    soup = BeautifulSoup(html, "html.parser")
-
-    results = []
-    for track in soup.select("li.searchresult"):
-        try:
-            title = track.select_one(".heading a").text.strip()
-            artist = re.sub("(\\n|\\s)+", " ", track.select_one(".subhead").text.strip())
-            thumbnail = track.select_one(".art img").get("src")
-            url = track.select_one(".itemurl a").get("href").split("?")[0]
-            description = track.select_one(".tags")
-            description = '' if not description else description.text.replace('\n', '').replace(' ', '')
-            if "/track/" in url:
-                results.append({
-                    "url": url,
-                    "title": title,
-                    "channel": artist,
-                    "thumbnail": thumbnail,
-                    "description": description,
-                    "duration": None
-                })
-        except Exception as e:
-            print(f"Failed to parse Bandcamp result: {track}")
-
-    return results
-
-def search_youtube(query: str):
-    ydl_opts = {
-        "quiet": True,
-        "skip_download": True,
-        "extract_flat": True,
+async def run_search(query: str):
+    providers = {
+        "bandcamp": provider.bandcamp,
+        "soundcloud": provider.soundcloud,
+        "youtube": provider.youtube,
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        result = ydl.extract_info(f"ytsearch10:{query}", download=False)
+    loop = asyncio.get_running_loop()
+    tasks = {
+        name: loop.run_in_executor(None, func, query)
+        for name, func in providers.items()
+    }
 
-    return [strip_ytdlp_info(info) for info in result.get("entries", [])]
+    results = []
+    for name, task in tasks.items():
+        try:
+            data = await task
+        except Exception:
+            data = []
+
+        results.extend([
+            {**item, "provider": name}
+            for item in data
+        ])
+
+    # Ranking
+    results = ranking.rank(query, results)
+
+    return results
 
 # Helpers
 
@@ -69,19 +49,8 @@ def get_audio_info(url: str, nostrip: bool = False):
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
-        return info if nostrip else strip_ytdlp_info(info)
+        return info if nostrip else provider.strip_ytdlp_info(info)
 
-def strip_ytdlp_info(info):
-    print(type(info), info)
-    return {
-        "title": info.get("title"),
-        "duration": info.get("duration"),
-        "description": info.get("description"),
-        "channel": info.get("channel"),
-        "thumbnail": info.get("thumbnails", [{}])[0].get("url"),  # FIXME: A smart way to select sensible-sized thumnail ?
-        "url": info.get("url"),
-        "acodec": info.get("acodec")
-    }
 
 # API
 
@@ -91,12 +60,12 @@ app = FastAPI(
 )
 
 @app.get("/")
-async def index():
+def index():
     return FileResponse('index.html')
 
 @app.get("/search")
-def search(q: str):
-    return {"results": run_search(q)}
+async def search(q: str):
+    return {"results": await run_search(q)}
 
 @app.get("/info")
 def info(url: str, nostrip: bool = False):
