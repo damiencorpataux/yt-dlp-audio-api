@@ -6,6 +6,9 @@ import re
 # Helpers
 
 def search_ytdlp(query: str, provider="ytsearch10"):
+    """
+    Perform a search using yt-dlp.
+    """
     ydl_opts = {
         "quiet": True,
         "skip_download": True,
@@ -18,11 +21,14 @@ def search_ytdlp(query: str, provider="ytsearch10"):
     return [strip_ytdlp_info(info) for info in result.get("entries", [])]
 
 def strip_ytdlp_info(info):
+    """
+    Cannonical search result structure - for all providers.
+    """
     return {
         "title": info.get("title"),
         "duration": info.get("duration"),
         "description": info.get("description"),
-        "channel": info.get("channel"),
+        "channel": info.get("channel"),  # FIXME: Ideally, the key should be named "artist".
         "thumbnail": info.get("thumbnails", [{}])[0].get("url"),  # FIXME: A smart way to select sensible-sized thumnail ?
         "url": info.get("url"),
         "acodec": info.get("acodec")
@@ -62,4 +68,5 @@ def youtube(query: str):
     return search_ytdlp(query, provider="ytsearch10")
 
 def soundcloud(query: str):
+    # FIXME: key 'channel' is null.
     return search_ytdlp(query, provider="scsearch10")

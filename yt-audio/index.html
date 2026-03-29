@@ -357,6 +357,7 @@ async function search() {
     return;
   }
 
+  ui.search.blur();
   ui.search.parentNode.querySelector("button").disabled = true;
   ui.results.innerHTML = `🎶 Searching for <q>${escapeHTML(q)}</q>...`;
 
@@ -370,7 +371,6 @@ async function search() {
     throw(e);
   } finally {
     ui.search.parentNode.querySelector("button").disabled = false;
-    ui.search.blur();
   }
 
   ui.results.innerHTML = "";
@@ -560,6 +560,7 @@ async function play_url(url) {
     ui.audio.src = proxy_url;
     await ui.audio.play();
   } catch(e) {
+    console.error('Playback error', e);
     if (e.name == "AbortError") return;  // skip user aborted error
     alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
     ui.trackname.innerHTML = '';

@@ -25,7 +25,8 @@ async def run_search(query: str):
     for name, task in tasks.items():
         try:
             data = await task
-        except Exception:
+        except Exception as e:
+            print(f"ERROR searching '{name}': {e}")
             data = []
 
         results.extend([
