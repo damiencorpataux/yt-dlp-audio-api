@@ -1,18 +1,18 @@
+import provider
+import ranking
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse, FileResponse
 import yt_dlp
-from bs4 import BeautifulSoup
 import requests
-import re
 import asyncio
 
 # Search
 
 async def run_search(query: str):
     providers = {
-        "bandcamp": search_bandcamp,
-        "soundcloud": search_soundcloud,
-        "youtube": search_youtube,
+        "bandcamp": provider.bandcamp,
+        "soundcloud": provider.soundcloud,
+        "youtube": provider.youtube,
     }
 
     loop = asyncio.get_running_loop()
@@ -34,117 +34,9 @@ async def run_search(query: str):
         ])
 
     # Ranking
-    results = dedupe(results)
-    results = rank_results(query, results)
+    results = ranking.rank(query, results)
 
     return results
-
-def search_bandcamp(query):
-    url = f"https://bandcamp.com/search?item_type=t&q={query}"
-    html = requests.get(url).text
-    soup = BeautifulSoup(html, "html.parser")
-
-    results = []
-    for track in soup.select("li.searchresult"):
-        try:
-            title = track.select_one(".heading a").text.strip()
-            artist = re.sub("(\\n|\\s)+", " ", track.select_one(".subhead").text.strip())
-            thumbnail = track.select_one(".art img").get("src")
-            url = track.select_one(".itemurl a").get("href").split("?")[0]
-            description = track.select_one(".tags")
-            description = '' if not description else description.text.replace('\n', '').replace(' ', '')
-            if "/track/" in url:
-                results.append({
-                    "url": url,
-                    "title": title,
-                    "channel": artist,
-                    "thumbnail": thumbnail,
-                    "description": description,
-                    "duration": None
-                })
-        except Exception as e:
-            print(f"Failed to parse Bandcamp result: {track}")
-
-    return results
-
-def search_youtube(query: str):
-    return search_ytdlp(query, provider="ytsearch10")
-
-def search_soundcloud(query: str):
-    return search_ytdlp(query, provider="scsearch10")
-
-def search_ytdlp(query: str, provider="ytsearch10"):
-    ydl_opts = {
-        "quiet": True,
-        "skip_download": True,
-        "extract_flat": True,
-    }
-
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        result = ydl.extract_info(f"{provider}:{query}", download=False)
-
-    return [strip_ytdlp_info(info) for info in result.get("entries", [])]
-
-# Search ranking
-
-PROVIDER_WEIGHT = {
-    "bandcamp": 1.0,      # high quality, official
-    "soundcloud": 0.9,    # good but noisy
-    "youtube": 0.8,       # many reuploads
-}
-
-def normalize(text: str):
-    text = text.lower()
-    text = re.sub(r"\(.*?\)|\[.*?\]", "", text)  # remove (live), [remix]
-    text = re.sub(r"[^a-z0-9\s]", "", text)
-    return text.strip()
-
-from difflib import SequenceMatcher
-def similarity(a: str, b: str):
-    return SequenceMatcher(None, a, b).ratio()
-
-def text_score(query, title):
-    return similarity(normalize(query), normalize(title)) * 100
-
-BAD_WORDS = ["live", "remix", "cover", "edit", "radio edit"]
-def penalty(title):
-    t = title.lower()
-    return -20 if any(word in t for word in BAD_WORDS) else 0
-
-def bonus(title):
-    t = title.lower()
-    if "official" in t:
-        return +10
-    if "topic" in t:  # YouTube auto-generated
-        return +8
-    return 0
-
-def score_result(query, result):
-    title = result.get("title", "")
-    provider = result.get("provider", "")
-
-    score = 0
-    score += text_score(query, title)            # Text similarity
-    score *= PROVIDER_WEIGHT.get(provider, 0.5)  # Provider weight
-    score += bonus(title)                        # Heuristics
-    score += penalty(title)
-
-    return score
-
-def rank_results(query, results):
-    return sorted(
-        results,
-        key=lambda r: score_result(query, r),
-        reverse=True
-    )
-
-def dedupe(results):
-    seen = {}
-    for r in results:
-        key = normalize(r["title"])
-        if key not in seen or score_result(key, r) > score_result(key, seen[key]):
-            seen[key] = r
-    return list(seen.values())
 
 # Helpers
 
@@ -157,18 +49,8 @@ def get_audio_info(url: str, nostrip: bool = False):
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
-        return info if nostrip else strip_ytdlp_info(info)
+        return info if nostrip else provider.strip_ytdlp_info(info)
 
-def strip_ytdlp_info(info):
-    return {
-        "title": info.get("title"),
-        "duration": info.get("duration"),
-        "description": info.get("description"),
-        "channel": info.get("channel"),
-        "thumbnail": info.get("thumbnails", [{}])[0].get("url"),  # FIXME: A smart way to select sensible-sized thumnail ?
-        "url": info.get("url"),
-        "acodec": info.get("acodec")
-    }
 
 # API
 
