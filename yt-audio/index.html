@@ -124,11 +124,9 @@
     }
     .playlist-item.current-position {
       background-color: var(--color-border);
-      border-color: transparent;
     }
     .playlist-item.current-position button.playlist-play{
-      border: transparent;
-      background: none;
+      visibility: hidden;
     }
     .playlist-item {
       cursor: grab;
@@ -594,9 +592,11 @@ function play_enable(enable) {
     const icon = ui.audio.paused ? "⏸︎" : "▶︎";
     ui.play.innerHTML = icon;
     ui.play.disabled = false;
+    ui.play.classList.remove("active");
   } else {
     ui.play.innerHTML = "⌛";
     ui.play.disabled = true;
+    ui.play.classList.add("active");
   }
 }
 play_enable(true);  // Initalize as enabled
