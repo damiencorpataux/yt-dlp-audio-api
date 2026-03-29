@@ -62,10 +62,16 @@ app = FastAPI(
 
 @app.get("/")
 def index():
+    """
+    Web UI.
+    """
     return FileResponse('index.html')
 
 @app.get("/search")
 async def search(q: str):
+    """
+    Perform search on configured providers (Bandcamp, Soundcloud, YouTube).
+    """
     return {"results": await run_search(q)}
 
 @app.get("/info")
@@ -174,4 +180,29 @@ def stream_mp3(request: Request, url: str):
         status_code=200,
         headers=headers,
         media_type="audio/mpeg",
+    )
+
+@app.get("/update")
+def update():
+    """
+    Upgrade `yt-dlp`.
+    """
+    process = subprocess.Popen(["pip", "install", "--upgrade", "yt-dlp"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    def iter_stream():
+        try:
+            while True:
+                chunk = process.stdout.read(1024 * 64)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            process.kill()
+
+    return StreamingResponse(
+        iter_stream(),
+        status_code=200,
     )
