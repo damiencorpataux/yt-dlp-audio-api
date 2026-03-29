@@ -2,12 +2,12 @@
 
 Personal music searching and streaming app.
 
-**Features** search and play from Bandcamp, YouTube or URL.
-
-**Needs** and a play queue.
+**Features** search and play from Bandcamp, Soundcloud, YouTube or URL.
+- Search results ranking
+- Playlist support
+- Full browser UI, no app.
 
 ![Demo](docs/yt-audio.gif)
-
 
 ## Installation
 
@@ -34,13 +34,13 @@ YT Audio uses an API wrapped around [`yt-dlp`](https://github.com/yt-dlp/yt-dlp)
     uvicorn app:app --host 0.0.0.0 --reload
     ```
 
-3. **Search & play music** at http://localhost:8000
+3. **Search & play music**
 
     Visit http://localhost:8000 if you installed YT Audio on your local computer
     or use the IP/hostname of the server you installed it on.
 
     ⚠️ Be careful to **not expose the API to the public**
-    because requests to music providers (Bandcamp, YouTube) are made from your IP address.
+    because requests to music providers (Bandcamp, Soundcloud, YouTube) are made from your IP address.
 
 
 ## Documentation
