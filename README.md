@@ -22,17 +22,17 @@ YT Audio uses an API wrapped around [`yt-dlp`](https://github.com/yt-dlp/yt-dlp)
 
 2. **Run the API** (in Docker or baremetal on your system)
 
-    - in **Docker**
-        ```sh
-        docker compose up --build
-        ```
+    in **Docker**
+    ```sh
+    docker compose up --build
+    ```
 
-    - or **baremetal** on your system
-        ```sh
-        pip install -r requirements
-        cd yt-audio
-        uvicorn app:app --host 0.0.0.0 --reload
-        ```
+    or **baremetal** on your system
+    ```sh
+    pip install -r requirements
+    cd yt-audio
+    uvicorn app:app --host 0.0.0.0 --reload
+    ```
 
 3. **Search & play music** at http://localhost:8000
 
