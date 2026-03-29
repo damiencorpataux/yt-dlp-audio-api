@@ -112,6 +112,9 @@
       border-radius: var(--radius);
     }
 
+    #playlist {
+      max-height:20vh;
+    }
     .playlist-item {
       margin-bottom: 4px;
       border-radius: var(--radius);
@@ -127,9 +130,14 @@
       border: transparent;
       background: none;
     }
+    .playlist-item {
+      cursor: grab;
+    }
+    .playlist-item:active {
+      cursor: grabbing;
+    }
 
     .result-item {
-      /* font-size: 85%; */
       padding: 8px;
       gap: 18px;
     }
@@ -245,7 +253,7 @@
     <hr>
     <!-- PLAYLIST -->
     <div id="playlist-container">
-      <div id="playlist" style="min-height:0; max-height:16vh; overflow:scroll; scrollbar-width:none"></div>
+      <div id="playlist" style="min-height:0; overflow:scroll; scrollbar-width:none"></div>
       <hr>
     </div>
   </div>
@@ -310,6 +318,29 @@ function escapeHTML(str) {
   div.appendChild(document.createTextNode(str));
   return div.textContent;
 }
+
+const SCROLL_EDGE_THRESHOLD = 16; // px from top/bottom
+const SCROLL_SPEED = 1;           // px per frame
+let autoScrollActive = false;
+document.addEventListener("dragover", (e) => {
+  // Scroll on drag (for playlist)
+  const container = ui.playlist;
+  const rect = container.getBoundingClientRect();
+  const offsetY = e.clientY - rect.top;
+  // Near top
+  if (offsetY < SCROLL_EDGE_THRESHOLD) {
+    container.scrollTop -= SCROLL_SPEED;
+    autoScrollActive = true;
+  }
+  // Near bottom
+  else if (offsetY > rect.height - SCROLL_EDGE_THRESHOLD) {
+    container.scrollTop += SCROLL_SPEED;
+    autoScrollActive = true;
+  } else {
+    autoScrollActive = false;
+  }
+});
+
 
 /* ---------------- SEARCH ---------------- */
 
@@ -407,31 +438,51 @@ function playlist_dequeue(position) {
   }
 }
 
+let dragIndex = null;
 function playlist_redraw() {
   ui.playlist.innerHTML = playlist.length ? '' : 'Playlist is empty. Just search and play some music !';
+
   for (const [i, track] of playlist.entries()) {
-    const div = document.createElement("div");
-    div.innerHTML += `
-      <div class="playlist-item row" style="gap:12px; align-items:center">
+    const wrapper = document.createElement("div");
+
+    wrapper.innerHTML = `
+      <div class="playlist-item row" draggable="true" style="gap:12px; align-items:center">
         <button class="playlist-play">▶︎</button>
         <img width="24px" src="${track.thumbnail}">
         <span style="flex:1">
           ${track.title}
         </span>
-          <span class="duration">
-            ${(track.duration) ? formatTime(track.duration) : ''}
-          </span>
+        <span class="duration">
+          ${(track.duration) ? formatTime(track.duration) : ''}
+        </span>
         <img style="width:16px" src="${get_provider_image(track.provider)}">
         <button class="playlist-remove">╳</button>
       </div>
     `;
-    div.querySelector("button.playlist-play").addEventListener("click", () => play_position(i));
-    div.querySelector("button.playlist-remove").addEventListener("click", () => playlist_dequeue(i));
+
+    const item = wrapper.querySelector(".playlist-item");
+
+    // Highlight track currently playing
     if (i == playlist_position) {
-      div.querySelector("div").classList.add("current-position");
+      item.classList.add("current-position");
     }
 
-    ui.playlist.appendChild(div);
+    // Click events
+    wrapper.querySelector(".playlist-play").addEventListener("click", () => play_position(i));
+    wrapper.querySelector(".playlist-remove").addEventListener("click", () => playlist_dequeue(i));
+
+    // Drag events
+    item.addEventListener("dragstart", () => dragIndex = i);
+    item.addEventListener("dragover", (e) => e.preventDefault());  // REQUIRED for drop
+    item.addEventListener("drop", () => {
+      if (dragIndex === null || dragIndex === i) return;
+      const moved = playlist.splice(dragIndex, 1)[0];
+      playlist.splice(i, 0, moved);
+      dragIndex = null;
+      playlist_redraw();
+    });
+
+    ui.playlist.appendChild(wrapper);
   }
 }
 playlist_redraw();
