@@ -230,7 +230,7 @@
     <!-- PLAYER TRACK NAME -->
     <div class="row" style="align-items:center; gap: 16px; margin-bottom:8px">
       <span id="trackname" style="flex:1; padding: 6px 6px 6px 12px">
-        Ready.
+        Ready. Search. Play.
       </span>
       <button id="playlist-toggle" class="active">
         ≡
@@ -418,6 +418,7 @@ function playlist_enqueue(track) {
   // if (!parseInt(localStorage.playlist_visible)) playlist_toggle();
   const position = playlist_get_position_by_url(track.url);
   if (position !== undefined) {
+    // TODO: Move track to end of playlist ?
     ui.playlist.children[position].scrollIntoView({behavior:"smooth"});
     return position;
   } else {
