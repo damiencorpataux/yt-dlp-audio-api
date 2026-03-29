@@ -5,18 +5,51 @@ from bs4 import BeautifulSoup
 import requests
 import re
 
-def run_search(query: str):
-    try: bandcamp = search_bandcamp(query)
-    except: bandcamp = []
+import asyncio
 
-    try: youtube = search_youtube(query)
-    except: youtube = []
+async def run_search(query: str):
+    providers = {
+        "bandcamp": search_bandcamp,
+        "soundcloud": search_soundcloud,
+        "youtube": search_youtube,
+    }
 
-    # Add provider key
-    return [
-        *[{**result, **{"provider": "bandcamp"}} for result in bandcamp],
-        *[{**result, **{"provider": "youtube"}} for result in youtube]
-    ]
+    loop = asyncio.get_running_loop()
+    tasks = {
+        name: loop.run_in_executor(None, func, query)
+        for name, func in providers.items()
+    }
+
+    results = []
+    for name, task in tasks.items():
+        try:
+            data = await task
+        except Exception:
+            data = []
+
+        results.extend([
+            {**item, "provider": name}
+            for item in data
+        ])
+
+    return results
+
+# def run_search(query: str):
+#     try: bandcamp = search_bandcamp(query)
+#     except: bandcamp = []
+
+#     try: youtube = search_youtube(query)
+#     except: youtube = []
+
+#     try: soundcloud = search_soundcloud(query)
+#     except: youtube = []
+
+#     # Add provider key
+#     return [
+#         *[{**result, **{"provider": "bandcamp"}} for result in bandcamp],
+#         *[{**result, **{"provider": "soundcloud"}} for result in soundcloud],
+#         *[{**result, **{"provider": "youtube"}} for result in youtube]
+#     ]
 
 def search_bandcamp(query):
     url = f"https://bandcamp.com/search?item_type=t&q={query}"
@@ -47,6 +80,12 @@ def search_bandcamp(query):
     return results
 
 def search_youtube(query: str):
+    return search_ytdlp(query, provider="ytsearch10")
+
+def search_soundcloud(query: str):
+    return search_ytdlp(query, provider="ytsearch10")
+
+def search_ytdlp(query: str, provider="ytsearch10"):
     ydl_opts = {
         "quiet": True,
         "skip_download": True,
@@ -54,7 +93,7 @@ def search_youtube(query: str):
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        result = ydl.extract_info(f"ytsearch10:{query}", download=False)
+        result = ydl.extract_info(f"{provider}:{query}", download=False)
 
     return [strip_ytdlp_info(info) for info in result.get("entries", [])]
 
@@ -72,7 +111,6 @@ def get_audio_info(url: str, nostrip: bool = False):
         return info if nostrip else strip_ytdlp_info(info)
 
 def strip_ytdlp_info(info):
-    print(type(info), info)
     return {
         "title": info.get("title"),
         "duration": info.get("duration"),
@@ -91,12 +129,12 @@ app = FastAPI(
 )
 
 @app.get("/")
-async def index():
+def index():
     return FileResponse('index.html')
 
 @app.get("/search")
-def search(q: str):
-    return {"results": run_search(q)}
+async def search(q: str):
+    return {"results": await run_search(q)}
 
 @app.get("/info")
 def info(url: str, nostrip: bool = False):

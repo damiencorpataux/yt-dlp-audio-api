@@ -293,6 +293,7 @@ function get_track_duration() {
 function get_provider_image(provider) {
   return {
     'bandcamp': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Bandcamp-button-bc-circle-green.svg/960px-Bandcamp-button-bc-circle-green.svg.png',
+    'soundcloud': 'https://cdn-icons-png.flaticon.com/512/145/145809.png',
     'youtube': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1280px-YouTube_full-color_icon_%282024%29.svg.png'
   }[provider] || 'default_url';  // FIXME
 }
@@ -359,12 +360,10 @@ async function search() {
       </div>
       <div style="flex:1;">
         <p><strong>${escapeHTML(track.title)}</strong></p>
-        <p class="row">
-          <span style="flex:1">${escapeHTML(track.channel)}</span>
-          <img width="16px" alt="${track.provider}" src="${get_provider_image(track.provider)}">
-        </p>
+        <p>${escapeHTML(track.channel)}</p>
         <p style="color:var(--color-mute)">${formatTime(track.duration, '&nbsp;')}</p>
       </div>
+      <img style="align-self:center; width:24px;" alt="${track.provider}" src="${get_provider_image(track.provider)}">
     `;
 
     div.querySelector("button.result-play").onclick = () => play_position(playlist_enqueue(track));
