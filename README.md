@@ -2,10 +2,10 @@
 
 Personal music searching and streaming app.
 
-**Features** search and play from Bandcamp, Soundcloud, YouTube or URL.
-- Search results ranking
-- Playlist support
-- Full browser UI, no app.
+**Features** search and play from Bandcamp, Soundcloud, YouTube or URL
+- **Ranking** of search results (title similarity, provider quality and duration)
+- **Playlist** support
+- **No app**, full browser UI.
 
 ![Demo](docs/yt-audio.gif)
 

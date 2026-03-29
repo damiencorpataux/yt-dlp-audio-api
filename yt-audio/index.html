@@ -92,7 +92,7 @@
     .app {
       display: grid;
       grid-template-rows: auto 1fr;  /* explicit rows */
-      height: calc(100dvh - 20px);
+      height: calc(100dvh - 40px);
     }
 
     .header {
@@ -126,7 +126,7 @@
       background-color: var(--color-border);
     }
     .playlist-item.current-position button.playlist-play{
-      visibility: hidden;
+      border-color: transparent;
     }
     .playlist-item {
       cursor: grab;
@@ -427,7 +427,9 @@ function playlist_dequeue(position) {
   if (!Number.isInteger(position)) return;
   if (confirm("Remove track from playlist ?")) {
     playlist.splice(position, 1);
+    if (position == playlist_position) playlist_position = null;
     localStorage.playlist = JSON.stringify(playlist);
+    localStorage.playlist_position = playlist_position;
     playlist_redraw();
   }
 }
