@@ -387,6 +387,7 @@ async function search() {
     const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`);
     data = await res.json();
   } catch(e) {
+    // FIXME: Doesn't execute when response is 500 (with valid json eror detail).
     alert(`❌ Search failed. Please try again.\n\n${String(e)}`);
     ui.results.innerHTML = "";
     throw(e);

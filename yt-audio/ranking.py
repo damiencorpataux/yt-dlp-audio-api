@@ -1,8 +1,9 @@
 
 from difflib import SequenceMatcher
-import re
 import math
+import re
 
+BAD_WORDS = ["live", "remix", "cover", "edit", "radio edit"]
 DURATION_OPTIMAL = 300  # 5 minutes
 DURATION_SIGMA = 300    # spread (~5 min)
 PROVIDER_WEIGHT = {
@@ -11,35 +12,60 @@ PROVIDER_WEIGHT = {
     "youtube": 0.8,     # many reuploads
 }
 
-def rank(query, results):
+def rank(results, query):
+    """
+    Return results ordered by score.
+    """
     results = dedupe(results)
-    results = rank_results(query, results)
-    return results
+    return sorted(
+        results,
+        key=lambda r: score_result(query, r),
+        reverse=True
+    )
 
-def normalize(text: str):
-    text = text.lower()
-    text = re.sub(r"\(.*?\)|\[.*?\]", "", text)  # remove (live), [remix]
-    text = re.sub(r"[^a-z0-9\s]", "", text)
-    return text.strip()
+# Scoring
 
-def similarity(a: str, b: str):
-    return SequenceMatcher(None, a, b).ratio()
+def score_result(query, result):
+    title = result.title
+    provider = result.provider
+    duration = result.duration
+    channel = result.channel
 
-def text_score(query, title):
-    return similarity(normalize(query), normalize(title)) * 100
+    score = 0
 
-BAD_WORDS = ["live", "remix", "cover", "edit", "radio edit"]
-def penalty(title):
-    t = title.lower()
-    return -20 if any(word in t for word in BAD_WORDS) else 0
+    # Text similarity
+    t_score = title_score(query, title)
+    score += t_score
 
-def bonus(title):
-    t = title.lower()
-    if "official" in t:
-        return +10
-    if "topic" in t:  # YouTube auto-generated
-        return +8
-    return 0
+    # Channel similarity
+    score += channel_score(query, channel)
+
+    # Provider weight
+    score *= PROVIDER_WEIGHT.get(provider, 0.5)
+
+    # Duration
+    score += duration_score(duration, t_score, provider)
+
+    return score
+
+def title_score(query, title):
+    score = 100 * similarity(normalize(query), normalize(title))
+    score += -20 if any(word in title.lower() for word in BAD_WORDS) else 0
+    return score
+
+def channel_score(query, channel):
+    # Boost up to +30 if channel matches query well
+    # score = 30 * similarity(normalize(query), (channel))
+    score = 0
+    # Bonus for official-looking channels
+    c = channel.lower()
+    if "official" in c:
+        score += 10
+    if "vevo" in c:
+        score += 8
+    if "topic" in c:  # YouTube auto-generated artist channel
+        score += 6
+    return score
 
 def duration_score(duration, text_match_score, provider):
     if not duration:
@@ -55,32 +81,18 @@ def duration_score(duration, text_match_score, provider):
 
     return base_score * weight
 
-def score_result(query, result):
-    title = result.title or ""
-    provider = result.provider or ""
-    duration = result.duration  # seconds
+# Helpers
 
-    score = 0
+def normalize(text: str):
+    if not text:
+        return ""
+    text = text.lower()
+    text = re.sub(r"\(.*?\)|\[.*?\]", "", text)  # remove (live), [remix]
+    text = re.sub(r"[^a-z0-9\s]", "", text)
+    return text.strip()
 
-    # Text similarity
-    t_score = text_score(query, title)
-    score += t_score
-    # Provider weight
-    score *= PROVIDER_WEIGHT.get(provider, 0.5)
-    # Heuristics
-    score += bonus(title)
-    score += penalty(title)
-    # Duration (NEW)
-    score += duration_score(duration, t_score, provider)
-
-    return score
-
-def rank_results(query, results):
-    return sorted(
-        results,
-        key=lambda r: score_result(query, r),
-        reverse=True
-    )
+def similarity(a: str, b: str):
+    return SequenceMatcher(None, a, b).ratio()
 
 def dedupe(results):
     seen = {}

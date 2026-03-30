@@ -64,7 +64,7 @@ async def run_search(query: str):
         ])
 
     # Ranking
-    results = ranking.rank(query, results)
+    results = ranking.rank(results, query)
 
     return results
 
