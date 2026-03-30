@@ -310,6 +310,33 @@ const ui = {
   dialog: document.getElementById("dialog")
 };
 
+/* ---------------- API Auth -------------- */
+
+const updated_key = new URLSearchParams(window.location.search).get("key");
+if (updated_key) {
+  localStorage.api_key = updated_key;
+  alert("🧒 Welcome")
+  window.location = window.location.href.split("?")[0];
+}
+
+async function fetch_auth(url, options = {}) {
+  const headers = {
+    ...(options.headers || {}),
+    "X-API-Key": localStorage.api_key
+  };
+
+  const response = await fetch(url, {
+    ...options,
+    headers
+  });
+
+  if (response.status === 401) {
+    console.error("Unauthorized - invalid API key");
+    alert("🧒 Please kindly ask for a valid API key");
+  }
+  return response;
+}
+
 /* ---------------- HELPERS --------------- */
 
 function get_track_duration() {
@@ -384,7 +411,7 @@ async function search() {
 
   let data;
   try {
-    const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`);
+    const res = await fetch_auth(`${API_URL}/search?q=${encodeURIComponent(q)}`);
     data = await res.json();
   } catch(e) {
     // FIXME: Doesn't execute when response is 500 (with valid json eror detail).
@@ -556,7 +583,7 @@ async function play_url(url) {
   ui.trackname.innerHTML = '♪ Loading track...'
 
   console.debug('Loading info for URL', url);
-  const info_res = await fetch(`${API_URL}/info?url=${encodeURIComponent(url)}`)
+  const info_res = await fetch_auth(`${API_URL}/info?url=${encodeURIComponent(url)}`)
   const info = await info_res.json();
   ui.trackname.innerHTML = escapeHTML(info.title || 'Unknown track name');
 

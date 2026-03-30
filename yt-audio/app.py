@@ -1,15 +1,34 @@
 import provider
 import ranking
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, Header, Depends, HTTPException
 from fastapi.responses import StreamingResponse, FileResponse
 from typing import List
 import yt_dlp
 import requests
 import asyncio
 import subprocess
+from functools import lru_cache
+import os
 
-# Helpers
+# API Auth
+
+def auth(x_api_key: str = Header(None)):
+    if os.getenv("PROFILE", "").lower() != "secure":
+        return  # only active when PROFILE=secure
+    if not x_api_key in get_allowed_keys():
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+@lru_cache
+def get_allowed_keys():
+    try:
+        with open("../yt-audio-data/authorized_keys", "r") as f:
+            return {line.strip().split(" ")[0] for line in f}
+    except FileNotFoundError as e:
+        print(f"ERROR authenticating: {e}")
+        return []
+
+# API Helpers
 
 def get_audio_info(url: str):
     ydl_opts = {
@@ -41,7 +60,7 @@ def get_audio_info(url: str):
         provider=None
     )
 
-# Search
+# API Routes
 
 async def run_search(query: str):
     providers = {
@@ -74,8 +93,6 @@ async def run_search(query: str):
 
     return results
 
-# API
-
 app = FastAPI(
     title="YT Audio API",
     summary="A minimalistic audio REST API to yt-dlp"
@@ -88,7 +105,9 @@ def index():
     """
     return FileResponse('index.html')
 
-@app.get("/search", response_model=List[provider.AudioItem])
+@app.get("/search",
+         response_model=List[provider.AudioItem],
+         dependencies=[Depends(auth)])
 async def search(q: str):
     """
     Perform search on configured providers (Bandcamp, Soundcloud, YouTube).
@@ -98,14 +117,19 @@ async def search(q: str):
     except Exception as e:
         raise HTTPException(500, str(e))
 
-@app.get("/info", response_model=provider.AudioItem)
+@app.get("/info",
+         response_model=provider.AudioItem,
+         dependencies=[Depends(auth)])
 def info(url: str):
     try:
         return get_audio_info(url)
     except Exception as e:
         raise HTTPException(500, str(e))
 
-@app.get("/stream", response_class=StreamingResponse, deprecated=True)
+@app.get("/stream",
+         response_class=StreamingResponse,
+         dependencies=[Depends(auth)],
+         deprecated=True)
 def stream(request: Request, url: str):
     """
     Stream audio proxy, with support of headers `Range` and `Content-Length`.
@@ -152,7 +176,9 @@ def stream(request: Request, url: str):
         media_type=r.headers.get("Content-Type", "application/octet-stream"),
     )
 
-@app.get("/stream/mp3", response_class=StreamingResponse)
+@app.get("/stream/mp3",
+         response_class=StreamingResponse,
+         dependencies=[Depends(auth)])
 def stream_mp3(request: Request, url: str):
     """
     Stream audio transcoded to mp3, without support of headers `Range` and `Content-Length`.
@@ -204,7 +230,9 @@ def stream_mp3(request: Request, url: str):
         media_type="audio/mpeg",
     )
 
-@app.get("/update", response_class=StreamingResponse)
+@app.get("/update",
+         response_class=StreamingResponse,
+         dependencies=[Depends(auth)])
 def update():
     """
     Upgrade `yt-dlp`. Quick hack.
