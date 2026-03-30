@@ -3,6 +3,21 @@ import requests
 from bs4 import BeautifulSoup
 import re
 
+# Data model
+
+from pydantic import BaseModel, HttpUrl
+from typing import Optional
+
+class AudioItem(BaseModel):
+    url: str  # HttpUrl
+    title: str
+    duration: Optional[float]
+    channel: Optional[str]
+    thumbnail: Optional[str]
+    description: Optional[str]
+    acodec: Optional[str]
+    provider: Optional[str]
+
 # Helpers
 
 def search_ytdlp(query: str, provider="ytsearch10"):
@@ -18,21 +33,7 @@ def search_ytdlp(query: str, provider="ytsearch10"):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         result = ydl.extract_info(f"{provider}:{query}", download=False)
 
-    return [strip_ytdlp_info(info) for info in result.get("entries", [])]
-
-def strip_ytdlp_info(info):
-    """
-    Cannonical search result structure - for all providers.
-    """
-    return {
-        "title": info.get("title"),
-        "duration": info.get("duration"),
-        "description": info.get("description"),
-        "channel": info.get("channel"),  # FIXME: Ideally, the key should be named "artist".
-        "thumbnail": info.get("thumbnails", [{}])[0].get("url"),  # FIXME: A smart way to select sensible-sized thumnail ?
-        "url": info.get("url"),
-        "acodec": info.get("acodec")
-    }
+    return result.get("entries", [])
 
 # Providers
 
@@ -51,22 +52,47 @@ def bandcamp(query):
             description = track.select_one(".tags")
             description = '' if not description else description.text.replace('\n', '').replace(' ', '')
             if "/track/" in url:
-                results.append({
-                    "url": url,
-                    "title": title,
-                    "channel": artist,
-                    "thumbnail": thumbnail,
-                    "description": description,
-                    "duration": None
-                })
+                results.append(AudioItem(
+                    url=url,
+                    title=title,
+                    duration=None,
+                    channel=artist,
+                    thumbnail=thumbnail,
+                    description=description,
+                    acodec=None,
+                    provider=None,
+                ))
         except Exception as e:
             print(f"Failed to parse Bandcamp result: {track}")
 
     return results
 
-def youtube(query: str):
-    return search_ytdlp(query, provider="ytsearch10")
-
 def soundcloud(query: str):
-    # FIXME: key 'channel' is null.
-    return search_ytdlp(query, provider="scsearch10")
+    return [
+        AudioItem(
+            url=info.get("url"),
+            title=info.get("title"),
+            duration=info.get("duration"),
+            channel=info.get("uploader") or info.get("channel"),
+            thumbnail=(info.get("thumbnails") or [{}])[0].get("url"),
+            description=info.get("description"),
+            acodec=info.get("acodec"),
+            provider=None,
+        )
+        for info in search_ytdlp(query, provider="scsearch10")
+    ]
+
+def youtube(query: str):
+    return [
+        AudioItem(
+            url=info.get("url"),
+            title=info.get("title"),
+            duration=info.get("duration"),
+            channel=info.get("channel"),
+            thumbnail=(info.get("thumbnails") or [{}])[0].get("url"),
+            description=info.get("description"),
+            acodec=info.get("acodec"),
+            provider=None,
+        )
+        for info in search_ytdlp(query, provider="ytsearch10")
+    ]

@@ -218,6 +218,7 @@
     <div class="row" style="align-items:baseline">
       <h1 style="margin-top:0; flex:1">
         <span>🎧</span>
+        &nbsp;
         <span>YT Audio</span>
       </h1>
       <a href="https://github.com/damiencorpataux/yt-dlp-audio-api">
@@ -374,12 +375,12 @@ async function search() {
   }
 
   ui.results.innerHTML = "";
-  data.results.forEach(track => {
+  data.forEach(track => {
     const div = document.createElement("div");
     div.className = "result-item row";
     div.innerHTML = `
       <div style="position:relative">
-        <img class="thumbnail" src="${track.thumbnail}" style="display:block">
+        <img class="thumbnail" style="display:block" src="${track.thumbnail}" alt="">
         <button class="result-play" style="position:absolute; bottom:2px; right:2px">
           ▶︎
         </button>
@@ -392,7 +393,7 @@ async function search() {
         <p>${escapeHTML(track.channel)}</p>
         <p style="color:var(--color-mute)">${formatTime(track.duration, '&nbsp;')}</p>
       </div>
-      <img style="align-self:center; width:24px;" alt="${track.provider}" src="${get_provider_image(track.provider)}">
+      <img style="align-self:center; width:24px;" alt="${track.provider}" src="${get_provider_image(track.provider)}" alt="">
     `;
 
     div.querySelector("button.result-play").onclick = () => play_position(playlist_enqueue(track));
@@ -449,14 +450,14 @@ function playlist_redraw() {
     wrapper.innerHTML = `
       <div class="playlist-item row" draggable="true" style="gap:12px; align-items:center">
         <button class="playlist-play">▶︎</button>
-        <img width="24px" src="${track.thumbnail}">
+        <img style="width:24px" src="${track.thumbnail}" alt="">
         <span style="flex:1">
           ${track.title}
         </span>
         <span class="duration">
           ${(track.duration) ? formatTime(track.duration) : ''}
         </span>
-        <img style="width:16px" src="${get_provider_image(track.provider)}">
+        <img style="width:16px" src="${get_provider_image(track.provider)}" alt="">
         <button class="playlist-remove">╳</button>
       </div>
     `;
@@ -538,7 +539,9 @@ async function play_url(url) {
   // Re-save track info in playlist (for direct URL play, and bandcamp search results missing duration)
   playlist_track = playlist[playlist_get_position_by_url(url)];
   if (playlist_track) {
+    playlist_track.title = info.title;
     playlist_track.duration = info.duration;
+    playlist_track.thumbnail = info.thumbnail;
     localStorage.playlist = JSON.stringify(playlist);
     playlist_redraw();
   }
