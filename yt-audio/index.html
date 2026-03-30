@@ -49,11 +49,11 @@
       border-radius: var(--radius);
       padding: 6px;
     }
-    input:focus {
+    input:focus, button:focus {
       color: white;
-      outline: none !important;
-      /* box-shadow: 0 0 16px var(--color-accent); */
+      outline: none;
     }
+
     button {
       cursor: pointer;
     }
@@ -103,12 +103,17 @@
       color: var(--color-mute);
     }
 
+    #searchInput:focus {
+      border: 1px solid var(--color-accent);
+      /* box-shadow: 0 0 16px var(--color-accent); */
+    }
+
     #trackname {
       min-height: 1lh;
       white-space: nowrap;
       overflow: scroll;
       scrollbar-width: none;
-      background-color: var(--color-panel);
+      border: 1px solid var(--color-border);
       border-radius: var(--radius);
     }
 
@@ -187,6 +192,16 @@
       width: 0%;
     }
 
+    #dialog {
+      top: 50%;
+      transform: translateY(-50%);
+      margin: 16px;
+      padding: 8px;
+      color: var(--color-text);
+      background-color: var(--color-panel);
+      border: 1px solid var(--color-border);
+    }
+
     /* Mobile */
 
     @media (max-width: 420px) {
@@ -213,6 +228,7 @@
     <div class="row" style="align-items:baseline">
       <h1 style="margin-top:0; flex:1">
         <span>🎧</span>
+        &nbsp;
         <span>YT Audio</span>
       </h1>
       <a href="https://github.com/damiencorpataux/yt-dlp-audio-api">
@@ -262,6 +278,15 @@
   </div>
 
   <audio id="audio"></audio>
+
+  <!-- TRACK INFO -->
+  <dialog id="dialog" popover>
+    <div id="dialog-content"></div>
+    <button popovertarget="dialog" popovertargetaction="hide" style="position:absolute; bottom:10px; right: 10px">
+      ╳
+    </button>
+  </dialog>
+
 </div>
 
 <script>
@@ -281,7 +306,8 @@ const ui = {
   bufferedBar: document.getElementById("bufferedBar"),
   progressBar: document.getElementById("progressBar"),
   playlist: document.getElementById("playlist"),
-  playlist_toggle: document.getElementById("playlist-toggle")
+  playlist_toggle: document.getElementById("playlist-toggle"),
+  dialog: document.getElementById("dialog")
 };
 
 /* ---------------- HELPERS --------------- */
@@ -352,6 +378,7 @@ async function search() {
     return;
   }
 
+  ui.search.blur();
   ui.search.parentNode.querySelector("button").disabled = true;
   ui.results.innerHTML = `🎶 Searching for <q>${escapeHTML(q)}</q>...`;
 
@@ -365,16 +392,15 @@ async function search() {
     throw(e);
   } finally {
     ui.search.parentNode.querySelector("button").disabled = false;
-    ui.search.blur();
   }
 
   ui.results.innerHTML = "";
-  data.results.forEach(track => {
+  data.forEach(track => {
     const div = document.createElement("div");
     div.className = "result-item row";
     div.innerHTML = `
       <div style="position:relative">
-        <img class="thumbnail" src="${track.thumbnail}" style="display:block">
+        <img class="thumbnail" style="display:block" src="${track.thumbnail}" alt="">
         <button class="result-play" style="position:absolute; bottom:2px; right:2px">
           ▶︎
         </button>
@@ -387,11 +413,12 @@ async function search() {
         <p>${escapeHTML(track.channel)}</p>
         <p style="color:var(--color-mute)">${formatTime(track.duration, '&nbsp;')}</p>
       </div>
-      <img style="align-self:center; width:24px;" alt="${track.provider}" src="${get_provider_image(track.provider)}">
+      <img class="result-info" style="align-self:center; width:24px;" alt="${track.provider}" src="${get_provider_image(track.provider)}" alt="">
     `;
 
     div.querySelector("button.result-play").onclick = () => play_position(playlist_enqueue(track));
     div.querySelector("button.result-enqueue").onclick = () => playlist_enqueue(track);
+    div.querySelector(".result-info").onclick = () => display_trackinfo(track);
 
     ui.results.appendChild(div);
   });
@@ -416,7 +443,8 @@ function playlist_enqueue(track) {
     return position;
   } else {
     // append track to playlist
-    if (track) playlist.push(track);
+    if (track.url) playlist.push(track);
+    track.date_added = Date.now();  // save the timestamp
     localStorage.playlist = JSON.stringify(playlist);
     playlist_redraw();
     return playlist.length-1;
@@ -425,7 +453,7 @@ function playlist_enqueue(track) {
 
 function playlist_dequeue(position) {
   if (!Number.isInteger(position)) return;
-  if (confirm("Remove track from playlist ?")) {
+  if (confirm(`♪ ${playlist[position].title}\n\nRemove track from playlist ?`)) {
     playlist.splice(position, 1);
     if (position == playlist_position) playlist_position = null;
     localStorage.playlist = JSON.stringify(playlist);
@@ -444,14 +472,14 @@ function playlist_redraw() {
     wrapper.innerHTML = `
       <div class="playlist-item row" draggable="true" style="gap:12px; align-items:center">
         <button class="playlist-play">▶︎</button>
-        <img width="24px" src="${track.thumbnail}">
+        <img style="width:24px" src="${track.thumbnail}" alt="">
         <span style="flex:1">
           ${track.title}
         </span>
         <span class="duration">
           ${(track.duration) ? formatTime(track.duration) : ''}
         </span>
-        <img style="width:16px" src="${get_provider_image(track.provider)}">
+        <img class="playlist-info" style="width:16px" src="${get_provider_image(track.provider)}" alt="">
         <button class="playlist-remove">╳</button>
       </div>
     `;
@@ -464,8 +492,9 @@ function playlist_redraw() {
     }
 
     // Click events
-    wrapper.querySelector(".playlist-play").addEventListener("click", () => play_position(i));
-    wrapper.querySelector(".playlist-remove").addEventListener("click", () => playlist_dequeue(i));
+    item.querySelector(".playlist-play").addEventListener("click", () => play_position(i));
+    item.querySelector(".playlist-remove").addEventListener("click", () => playlist_dequeue(i));
+    item.querySelector(".playlist-info").addEventListener("click", () => display_trackinfo(playlist[i]));
 
     // Drag events
     item.addEventListener("dragstart", () => dragIndex = i);
@@ -533,7 +562,9 @@ async function play_url(url) {
   // Re-save track info in playlist (for direct URL play, and bandcamp search results missing duration)
   playlist_track = playlist[playlist_get_position_by_url(url)];
   if (playlist_track) {
+    playlist_track.title = info.title;
     playlist_track.duration = info.duration;
+    playlist_track.thumbnail = info.thumbnail;
     localStorage.playlist = JSON.stringify(playlist);
     playlist_redraw();
   }
@@ -555,6 +586,7 @@ async function play_url(url) {
     ui.audio.src = proxy_url;
     await ui.audio.play();
   } catch(e) {
+    console.error('Playback error', e);
     if (e.name == "AbortError") return;  // skip user aborted error
     alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
     ui.trackname.innerHTML = '';
@@ -651,6 +683,41 @@ function play_seek(clientX) {
 ui.progressBar.addEventListener("click", (e) => play_seek(e.clientX));  // Desktop
 ui.progressBar.addEventListener("touchstart", (e) => play_seek(e.touches[0].clientX));  // Mobile
 
+/* ----------- TRACK INFO DIALOG ----------- */
+
+function display_trackinfo(track) {
+      const div = document.createElement('div');
+      for (let [key, value] of Object.entries(track)) {
+        if (key == "thumbnail") continue;
+        if (key == "url") continue;
+        if (key == "description") continue;
+        if (key == "acodec") continue;
+        if (key == "duration") value = formatTime(value);
+        if (key == "date_added") value = new Date().toLocaleString();
+        div.innerHTML += `
+          <p>
+            <strong style="text-transform:capitalize; color: var(--color-mute)">
+              ${key.replace("_", " ")}
+            </strong>
+            <span _style="padding:var(--radius); overflow:hidden">
+              ${value}
+            </span>
+          </p>
+        `;
+      }
+      ui.dialog.querySelector("#dialog-content").innerHTML = `
+          <div>
+            <img style="height:120px" src="${track.thumbnail}">
+          </div>
+          <p style="flex:1">
+            <a href="${track.url}">${track.url}</a>
+          </p>
+        </div>
+      `;
+      ui.dialog.querySelector("#dialog-content").appendChild(div);
+      ui.dialog.showPopover();
+}
+
 /* ---------------- HOTKEYS ---------------- */
 
 document.addEventListener("keydown", (e) => {
@@ -661,6 +728,7 @@ document.addEventListener("keydown", (e) => {
   if      (e.code == "Space")      play_toggle();
   else if (e.code == "ArrowRight") play_ffwd();
   else if (e.code == "ArrowLeft")  play_rev();
+  else if (e.code == "Tab")        ui.search.focus();
   else preventDefault = false;
 
   if (preventDefault) e.preventDefault();

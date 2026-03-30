@@ -1,3 +1,4 @@
+
 from difflib import SequenceMatcher
 import re
 import math
@@ -55,9 +56,9 @@ def duration_score(duration, text_match_score, provider):
     return base_score * weight
 
 def score_result(query, result):
-    title = result.get("title", "")
-    provider = result.get("provider", "")
-    duration = result.get("duration")  # seconds
+    title = result.title or ""
+    provider = result.provider or ""
+    duration = result.duration  # seconds
 
     score = 0
 
@@ -84,7 +85,7 @@ def rank_results(query, results):
 def dedupe(results):
     seen = {}
     for r in results:
-        key = normalize(r["title"])
+        key = normalize(r.title)
         if key not in seen or score_result(key, r) > score_result(key, seen[key]):
             seen[key] = r
     return list(seen.values())

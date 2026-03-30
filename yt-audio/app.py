@@ -1,10 +1,40 @@
 import provider
 import ranking
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse, FileResponse
+from typing import List
 import yt_dlp
 import requests
 import asyncio
+import subprocess
+
+
+# Helpers
+
+def get_audio_info(url: str, nostrip: bool = False):
+    ydl_opts = {
+        "format": "bestaudio/best",
+        "quiet": True,
+        "noplaylist": True,
+    }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+
+    if nostrip:
+        return info
+
+    return provider.AudioItem(
+        url=info.get("url"),
+        title=info.get("title"),
+        duration=info.get("duration"),
+        channel=info.get("channel"),
+        thumbnail=(info.get("thumbnails") or [{}])[0].get("url"),
+        description=info.get("description"),
+        acodec=info.get("acodec"),
+        provider=None
+    )
 
 # Search
 
@@ -25,11 +55,12 @@ async def run_search(query: str):
     for name, task in tasks.items():
         try:
             data = await task
-        except Exception:
+        except Exception as e:
+            print(f"ERROR searching '{name}': {e}")
             data = []
 
         results.extend([
-            {**item, "provider": name}
+            item.model_copy(update={"provider": name})
             for item in data
         ])
 
@@ -37,20 +68,6 @@ async def run_search(query: str):
     results = ranking.rank(query, results)
 
     return results
-
-# Helpers
-
-def get_audio_info(url: str, nostrip: bool = False):
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "quiet": True,
-        "noplaylist": True,
-    }
-
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        return info if nostrip else provider.strip_ytdlp_info(info)
-
 
 # API
 
@@ -61,32 +78,41 @@ app = FastAPI(
 
 @app.get("/")
 def index():
+    """
+    Web UI.
+    """
     return FileResponse('index.html')
 
-@app.get("/search")
+@app.get("/search", response_model=List[provider.AudioItem])
 async def search(q: str):
-    return {"results": await run_search(q)}
+    """
+    Perform search on configured providers (Bandcamp, Soundcloud, YouTube).
+    """
+    try:
+        return await run_search(q)
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
-@app.get("/info")
+@app.get("/info", response_model=provider.AudioItem)
 def info(url: str, nostrip: bool = False):
     try:
         return get_audio_info(url, nostrip)
     except Exception as e:
         raise HTTPException(500, str(e))
 
-@app.get("/stream")
+@app.get("/stream", response_class=StreamingResponse, deprecated=True)
 def stream(request: Request, url: str):
     """
-    Stream audio, with support of headers `Range` and `Content-Length`.
-    Note: whenever possible, use direct stream of key `url` from route `/info`.
+    Stream audio proxy, with support of headers `Range` and `Content-Length`.
+    Deprecated: use direct stream of key `url` from route `/info`.
     """
     try:
         info = get_audio_info(url)
     except Exception as e:
         raise HTTPException(500, str(e))
 
-    stream_url = info["url"]
-    title = info.get("title", "audio")
+    stream_url = info.url
+    title = info.title
 
     # Forward Range header if present
     headers = {}
@@ -118,12 +144,10 @@ def stream(request: Request, url: str):
         iter_stream(),
         status_code=r.status_code,  # 🔥 CRITICAL (200 vs 206)
         headers=response_headers,
-        media_type=r.headers.get("Content-Type", "audio/mpeg"),
+        media_type=r.headers.get("Content-Type", "application/octet-stream"),
     )
 
-import subprocess
-
-@app.get("/stream/mp3")
+@app.get("/stream/mp3", response_class=StreamingResponse)
 def stream_mp3(request: Request, url: str):
     """
     Stream audio transcoded to mp3, without support of headers `Range` and `Content-Length`.
@@ -133,8 +157,8 @@ def stream_mp3(request: Request, url: str):
     except Exception as e:
         raise HTTPException(500, str(e))
 
-    stream_url = info["url"]
-    title = info.get("title", "audio")
+    stream_url = info.url
+    title = info.title
 
     process = subprocess.Popen(
         [
@@ -173,4 +197,30 @@ def stream_mp3(request: Request, url: str):
         status_code=200,
         headers=headers,
         media_type="audio/mpeg",
+    )
+
+@app.get("/update", response_class=StreamingResponse)
+def update():
+    """
+    Upgrade `yt-dlp`. Quick hack.
+    """
+    process = subprocess.Popen(["pip", "install", "--upgrade", "yt-dlp"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    def iter_stream():
+        try:
+            while True:
+                chunk = process.stdout.read(1024 * 64)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            process.kill()
+
+    return StreamingResponse(
+        iter_stream(),
+        media_type="text/plain",
+        status_code=200,
     )
