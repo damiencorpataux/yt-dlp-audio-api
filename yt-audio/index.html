@@ -322,7 +322,7 @@ function get_provider_image(provider) {
     'bandcamp': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Bandcamp-button-bc-circle-green.svg/960px-Bandcamp-button-bc-circle-green.svg.png',
     'soundcloud': 'https://cdn-icons-png.flaticon.com/512/145/145809.png',
     'youtube': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/YouTube_full-color_icon_%282024%29.svg/1280px-YouTube_full-color_icon_%282024%29.svg.png'
-  }[provider] || 'default_url';  // FIXME
+  }[provider] || '';  // FIXME
 }
 
 function formatTime(t, fallback) {
@@ -387,6 +387,7 @@ async function search() {
     const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`);
     data = await res.json();
   } catch(e) {
+    // FIXME: Doesn't execute when response is 500 (with valid json eror detail).
     alert(`❌ Search failed. Please try again.\n\n${String(e)}`);
     ui.results.innerHTML = "";
     throw(e);
@@ -686,36 +687,39 @@ ui.progressBar.addEventListener("touchstart", (e) => play_seek(e.touches[0].clie
 /* ----------- TRACK INFO DIALOG ----------- */
 
 function display_trackinfo(track) {
-      const div = document.createElement('div');
-      for (let [key, value] of Object.entries(track)) {
-        if (key == "thumbnail") continue;
-        if (key == "url") continue;
-        if (key == "description") continue;
-        if (key == "acodec") continue;
-        if (key == "duration") value = formatTime(value);
-        if (key == "date_added") value = new Date().toLocaleString();
-        div.innerHTML += `
-          <p>
-            <strong style="text-transform:capitalize; color: var(--color-mute)">
-              ${key.replace("_", " ")}
-            </strong>
-            <span _style="padding:var(--radius); overflow:hidden">
-              ${value}
-            </span>
-          </p>
-        `;
-      }
-      ui.dialog.querySelector("#dialog-content").innerHTML = `
-          <div>
-            <img style="height:120px" src="${track.thumbnail}">
-          </div>
-          <p style="flex:1">
-            <a href="${track.url}">${track.url}</a>
-          </p>
-        </div>
-      `;
-      ui.dialog.querySelector("#dialog-content").appendChild(div);
-      ui.dialog.showPopover();
+  // Thumbnail and page URL
+  ui.dialog.querySelector("#dialog-content").innerHTML = `
+      <div>
+        <img style="height:120px" src="${track.thumbnail}">
+      </div>
+      <p style="flex:1">
+        <a target="_blank" href="${track.url}">${track.url}</a>
+      </p>
+    </div>
+  `;
+
+  // Track metadata
+  const div = document.createElement('div');
+  for (let [key, value] of Object.entries(track)) {
+    if (key == "thumbnail") continue;
+    if (key == "url") continue;
+    if (key == "description") continue;
+    if (key == "acodec") continue;
+    if (key == "duration") value = formatTime(value);
+    if (key == "date_added") value = new Date().toLocaleString();
+    div.innerHTML += `
+      <p>
+        <strong style="text-transform:capitalize; color: var(--color-mute)">
+          ${key.replace("_", " ")}
+        </strong>
+        <span>
+          ${value}
+        </span>
+      </p>
+    `;
+  }
+  ui.dialog.querySelector("#dialog-content").appendChild(div);
+  ui.dialog.showPopover();
 }
 
 /* ---------------- HOTKEYS ---------------- */

@@ -70,11 +70,11 @@ def bandcamp(query):
 def soundcloud(query: str):
     return [
         AudioItem(
-            url=info.get("url"),
+            url=info.get("webpage_url"),
             title=info.get("title"),
             duration=info.get("duration"),
             channel=info.get("uploader") or info.get("channel"),
-            thumbnail=(info.get("thumbnails") or [{}])[0].get("url"),
+            thumbnail=(info.get("thumbnails") or [{}])[-4].get("url"),
             description=info.get("description"),
             acodec=info.get("acodec"),
             provider=None,

@@ -9,10 +9,9 @@ import requests
 import asyncio
 import subprocess
 
-
 # Helpers
 
-def get_audio_info(url: str, nostrip: bool = False):
+def get_audio_info(url: str):
     ydl_opts = {
         "format": "bestaudio/best",
         "quiet": True,
@@ -22,15 +21,21 @@ def get_audio_info(url: str, nostrip: bool = False):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
 
-    if nostrip:
-        return info
+    # Select thumbnail
+    for i in range(-4,1):
+        try:
+            thumbnail = (info.get("thumbnails"))[i].get("url")
+            break
+        except:
+            pass
+        thumbnail = None
 
     return provider.AudioItem(
         url=info.get("url"),
         title=info.get("title"),
         duration=info.get("duration"),
         channel=info.get("channel"),
-        thumbnail=(info.get("thumbnails") or [{}])[0].get("url"),
+        thumbnail=thumbnail,
         description=info.get("description"),
         acodec=info.get("acodec"),
         provider=None
@@ -65,7 +70,7 @@ async def run_search(query: str):
         ])
 
     # Ranking
-    results = ranking.rank(query, results)
+    results = ranking.rank(results, query)
 
     return results
 
@@ -94,9 +99,9 @@ async def search(q: str):
         raise HTTPException(500, str(e))
 
 @app.get("/info", response_model=provider.AudioItem)
-def info(url: str, nostrip: bool = False):
+def info(url: str):
     try:
-        return get_audio_info(url, nostrip)
+        return get_audio_info(url)
     except Exception as e:
         raise HTTPException(500, str(e))
 
