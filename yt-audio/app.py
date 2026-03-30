@@ -9,7 +9,6 @@ import requests
 import asyncio
 import subprocess
 
-
 # Helpers
 
 def get_audio_info(url: str, nostrip: bool = False):
@@ -30,7 +29,7 @@ def get_audio_info(url: str, nostrip: bool = False):
         title=info.get("title"),
         duration=info.get("duration"),
         channel=info.get("channel"),
-        thumbnail=(info.get("thumbnails") or [{}])[0].get("url"),
+        thumbnail=(info.get("thumbnails") or [{}])[-4].get("url"),
         description=info.get("description"),
         acodec=info.get("acodec"),
         provider=None
