@@ -28,6 +28,8 @@ def search_ytdlp(query: str, provider="ytsearch10"):
         "quiet": True,
         "skip_download": True,
         "extract_flat": True,
+        "min_sleep_interval": 2,
+        "max_sleep_interval": 5,
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

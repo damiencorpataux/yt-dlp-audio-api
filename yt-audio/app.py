@@ -33,8 +33,10 @@ def get_allowed_keys():
 def get_audio_info(url: str):
     ydl_opts = {
         "format": "bestaudio/best",
-        "quiet": True,
         "noplaylist": True,
+        "quiet": True,
+        "min_sleep_interval": 2,
+        "max_sleep_interval": 5,
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
