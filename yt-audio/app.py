@@ -202,7 +202,7 @@ def stream_mp3(request: Request, url: str):
 @app.get("/update", response_class=StreamingResponse)
 def update():
     """
-    Upgrade `yt-dlp`.
+    Upgrade `yt-dlp`. Quick hack.
     """
     process = subprocess.Popen(["pip", "install", "--upgrade", "yt-dlp"],
         stdout=subprocess.PIPE,

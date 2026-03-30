@@ -192,6 +192,16 @@
       width: 0%;
     }
 
+    #dialog {
+      top: 50%;
+      transform: translateY(-50%);
+      margin: 16px;
+      padding: 8px;
+      color: var(--color-text);
+      background-color: var(--color-panel);
+      border: 1px solid var(--color-border);
+    }
+
     /* Mobile */
 
     @media (max-width: 420px) {
@@ -268,6 +278,15 @@
   </div>
 
   <audio id="audio"></audio>
+
+  <!-- TRACK INFO -->
+  <dialog id="dialog" popover>
+    <div id="dialog-content"></div>
+    <button popovertarget="dialog" popovertargetaction="hide" style="position:absolute; bottom:10px; right: 10px">
+      ╳
+    </button>
+  </dialog>
+
 </div>
 
 <script>
@@ -287,7 +306,8 @@ const ui = {
   bufferedBar: document.getElementById("bufferedBar"),
   progressBar: document.getElementById("progressBar"),
   playlist: document.getElementById("playlist"),
-  playlist_toggle: document.getElementById("playlist-toggle")
+  playlist_toggle: document.getElementById("playlist-toggle"),
+  dialog: document.getElementById("dialog")
 };
 
 /* ---------------- HELPERS --------------- */
@@ -393,11 +413,12 @@ async function search() {
         <p>${escapeHTML(track.channel)}</p>
         <p style="color:var(--color-mute)">${formatTime(track.duration, '&nbsp;')}</p>
       </div>
-      <img style="align-self:center; width:24px;" alt="${track.provider}" src="${get_provider_image(track.provider)}" alt="">
+      <img class="result-info" style="align-self:center; width:24px;" alt="${track.provider}" src="${get_provider_image(track.provider)}" alt="">
     `;
 
     div.querySelector("button.result-play").onclick = () => play_position(playlist_enqueue(track));
     div.querySelector("button.result-enqueue").onclick = () => playlist_enqueue(track);
+    div.querySelector(".result-info").onclick = () => display_trackinfo(track);
 
     ui.results.appendChild(div);
   });
@@ -422,7 +443,8 @@ function playlist_enqueue(track) {
     return position;
   } else {
     // append track to playlist
-    if (track) playlist.push(track);
+    if (track.url) playlist.push(track);
+    track.date_added = Date.now();  // save the timestamp
     localStorage.playlist = JSON.stringify(playlist);
     playlist_redraw();
     return playlist.length-1;
@@ -431,7 +453,7 @@ function playlist_enqueue(track) {
 
 function playlist_dequeue(position) {
   if (!Number.isInteger(position)) return;
-  if (confirm("Remove track from playlist ?")) {
+  if (confirm(`♪ ${playlist[position].title}\n\nRemove track from playlist ?`)) {
     playlist.splice(position, 1);
     if (position == playlist_position) playlist_position = null;
     localStorage.playlist = JSON.stringify(playlist);
@@ -457,7 +479,7 @@ function playlist_redraw() {
         <span class="duration">
           ${(track.duration) ? formatTime(track.duration) : ''}
         </span>
-        <img style="width:16px" src="${get_provider_image(track.provider)}" alt="">
+        <img class="playlist-info" style="width:16px" src="${get_provider_image(track.provider)}" alt="">
         <button class="playlist-remove">╳</button>
       </div>
     `;
@@ -470,8 +492,9 @@ function playlist_redraw() {
     }
 
     // Click events
-    wrapper.querySelector(".playlist-play").addEventListener("click", () => play_position(i));
-    wrapper.querySelector(".playlist-remove").addEventListener("click", () => playlist_dequeue(i));
+    item.querySelector(".playlist-play").addEventListener("click", () => play_position(i));
+    item.querySelector(".playlist-remove").addEventListener("click", () => playlist_dequeue(i));
+    item.querySelector(".playlist-info").addEventListener("click", () => display_trackinfo(playlist[i]));
 
     // Drag events
     item.addEventListener("dragstart", () => dragIndex = i);
@@ -659,6 +682,41 @@ function play_seek(clientX) {
 }
 ui.progressBar.addEventListener("click", (e) => play_seek(e.clientX));  // Desktop
 ui.progressBar.addEventListener("touchstart", (e) => play_seek(e.touches[0].clientX));  // Mobile
+
+/* ----------- TRACK INFO DIALOG ----------- */
+
+function display_trackinfo(track) {
+      const div = document.createElement('div');
+      for (let [key, value] of Object.entries(track)) {
+        if (key == "thumbnail") continue;
+        if (key == "url") continue;
+        if (key == "description") continue;
+        if (key == "acodec") continue;
+        if (key == "duration") value = formatTime(value);
+        if (key == "date_added") value = new Date().toLocaleString();
+        div.innerHTML += `
+          <p>
+            <strong style="text-transform:capitalize; color: var(--color-mute)">
+              ${key.replace("_", " ")}
+            </strong>
+            <span _style="padding:var(--radius); overflow:hidden">
+              ${value}
+            </span>
+          </p>
+        `;
+      }
+      ui.dialog.querySelector("#dialog-content").innerHTML = `
+          <div>
+            <img style="height:120px" src="${track.thumbnail}">
+          </div>
+          <p style="flex:1">
+            <a href="${track.url}">${track.url}</a>
+          </p>
+        </div>
+      `;
+      ui.dialog.querySelector("#dialog-content").appendChild(div);
+      ui.dialog.showPopover();
+}
 
 /* ---------------- HOTKEYS ---------------- */
 

@@ -15,7 +15,7 @@ class AudioItem(BaseModel):
     channel: Optional[str]
     thumbnail: Optional[str]
     description: Optional[str]
-    acodec: Optional[str]
+    acodec: Optional[str]  # FIXME: Remove this, it is unused.
     provider: Optional[str]
 
 # Helpers
