@@ -22,7 +22,7 @@ def auth(x_api_key: str = Header(None)):
 @lru_cache
 def get_allowed_keys():
     try:
-        with open("../yt-audio-data/authorized_keys", "r") as f:
+        with open("../ytaudio-data/authorized_keys", "r") as f:
             return {line.strip().split(" ")[0] for line in f}
     except FileNotFoundError as e:
         print(f"ERROR authenticating: {e}")
