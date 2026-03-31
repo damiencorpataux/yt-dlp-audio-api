@@ -1,8 +1,8 @@
 import provider
 import ranking
 
-from fastapi import FastAPI, Request, Header, Depends, HTTPException
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi import FastAPI, APIRouter, Request, Header, Depends, HTTPException
+from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
 from typing import List
 import yt_dlp
 import requests
@@ -29,6 +29,37 @@ def get_allowed_keys():
         return []
 
 # API Helpers
+
+async def run_search(query: str):
+    providers = {
+        "bandcamp": provider.bandcamp,
+        "soundcloud": provider.soundcloud,
+        "youtube": provider.youtube,
+    }
+
+    loop = asyncio.get_running_loop()  # concurrent providers search
+    tasks = {
+        provider_name: loop.run_in_executor(None, search_func, query)
+        for provider_name, search_func in providers.items()
+    }
+
+    results = []
+    for provider_name, executed_task in tasks.items():
+        try:
+            search_results = await executed_task
+        except Exception as e:
+            print(f"ERROR searching '{provider_name}': {e}")
+            search_results = []
+
+        results.extend([
+            item.model_copy(update={"provider": provider_name})
+            for item in search_results
+        ])
+
+    # Ranking
+    results = ranking.rank(results, query)
+
+    return results
 
 def get_audio_info(url: str):
     ydl_opts = {
@@ -62,50 +93,23 @@ def get_audio_info(url: str):
         provider=None
     )
 
-# API Routes
-
-async def run_search(query: str):
-    providers = {
-        "bandcamp": provider.bandcamp,
-        "soundcloud": provider.soundcloud,
-        "youtube": provider.youtube,
-    }
-
-    loop = asyncio.get_running_loop()
-    tasks = {
-        name: loop.run_in_executor(None, func, query)
-        for name, func in providers.items()
-    }
-
-    results = []
-    for name, task in tasks.items():
-        try:
-            data = await task
-        except Exception as e:
-            print(f"ERROR searching '{name}': {e}")
-            data = []
-
-        results.extend([
-            item.model_copy(update={"provider": name})
-            for item in data
-        ])
-
-    # Ranking
-    results = ranking.rank(results, query)
-
-    return results
+# API
 
 app = FastAPI(
     title="YT Audio API",
     summary="A minimalistic audio REST API to yt-dlp"
 )
 
-@app.get("/")
-def index():
+@app.get("/", response_class=HTMLResponse)
+@app.get("/ui/{static_file:path}", include_in_schema=False)
+def ui(static_file: str = "ui.html"):
     """
     Web UI.
     """
-    return FileResponse('index.html')
+    try:
+        return FileResponse(f"ui/{static_file}")
+    except:
+        raise HTTPException(404)  # FIXME: Does not fire, response is 500 Intenal Server Error
 
 @app.get("/search",
          response_model=List[provider.AudioItem],
