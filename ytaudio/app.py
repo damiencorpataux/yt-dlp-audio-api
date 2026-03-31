@@ -126,7 +126,10 @@ async def search(q: str):
 @app.get("/info",
          response_model=provider.AudioItem,
          dependencies=[Depends(auth)])
-def info(url: str):
+def get_stream_info(url: str):
+    """
+    Return audio stream information for `url`.
+    """
     try:
         return get_audio_info(url)
     except Exception as e:
@@ -136,7 +139,7 @@ def info(url: str):
          response_class=StreamingResponse,
          dependencies=[Depends(auth)],
          deprecated=True)
-def stream(request: Request, url: str):
+def stream_raw(request: Request, url: str):
     """
     Stream audio proxy, with support of headers `Range` and `Content-Length`.
     Deprecated: use direct stream of key `url` from route `/info`.
@@ -239,7 +242,7 @@ def stream_mp3(request: Request, url: str):
 @app.get("/update",
          response_class=StreamingResponse,
          dependencies=[Depends(auth)])
-def update():
+def update_provider():
     """
     Upgrade `yt-dlp`. Quick hack.
     """
