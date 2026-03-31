@@ -473,7 +473,6 @@ function playlist_enqueue(track) {
     // append track to playlist
     if (track.url) playlist.push(track);
     track.date_added = Date.now();  // save the timestamp
-    localStorage.playlist = JSON.stringify(playlist);
     playlist_redraw();
     return playlist.length-1;
   }
@@ -484,16 +483,18 @@ function playlist_dequeue(position) {
   if (confirm(`♪ ${playlist[position].title}\n\nRemove track from playlist ?`)) {
     playlist.splice(position, 1);
     if (position == playlist_position) playlist_position = null;
-    localStorage.playlist = JSON.stringify(playlist);
-    localStorage.playlist_position = playlist_position;
     playlist_redraw();
   }
 }
 
 let dragIndex = null;
 function playlist_redraw() {
-  ui.playlist.innerHTML = playlist.length ? '' : 'Playlist is empty. Just search and play some music !';
+  // Save playlist to local storage
+  localStorage.playlist = JSON.stringify(playlist);
+  localStorage.playlist_position = playlist_position;
 
+  // Redraw playlist
+  ui.playlist.innerHTML = playlist.length ? '' : 'Playlist is empty. Just search and play some music !';
   for (const [i, track] of playlist.entries()) {
     const wrapper = document.createElement("div");
 
@@ -529,10 +530,13 @@ function playlist_redraw() {
     item.addEventListener("dragover", (e) => e.preventDefault());  // REQUIRED for drop
     item.addEventListener("drop", () => {
       if (dragIndex === null || dragIndex === i) return;
+      const playlist_position_url = playlist[playlist_position].url;  // Save playlist position
       const moved = playlist.splice(dragIndex, 1)[0];
       playlist.splice(i, 0, moved);
       dragIndex = null;
-      playlist_redraw();
+      console.log(playlist_position, playlist_get_position_by_url(playlist_position_url), playlist_position_url)
+      playlist_position = playlist_get_position_by_url(playlist_position_url);  // Restore playlist position
+      playlist_redraw();  // FIXME: Update playlist_position.
     });
 
     ui.playlist.appendChild(wrapper);
@@ -569,7 +573,6 @@ function play_position(position) {
     return;
   }
   playlist_position = position;
-  localStorage.playlist_position = playlist_position;
   playlist_redraw();
   ui.playlist.children[position].scrollIntoView({behavior:"smooth"});
   const track = playlist[position];
@@ -588,12 +591,11 @@ async function play_url(url) {
   ui.trackname.innerHTML = escapeHTML(info.title || 'Unknown track name');
 
   // Re-save track info in playlist (for direct URL play, and bandcamp search results missing duration)
-  playlist_track = playlist[playlist_get_position_by_url(url)];
+  const playlist_track = playlist[playlist_get_position_by_url(url)];
   if (playlist_track) {
     playlist_track.title = info.title;
     playlist_track.duration = info.duration;
     playlist_track.thumbnail = info.thumbnail;
-    localStorage.playlist = JSON.stringify(playlist);
     playlist_redraw();
   }
 
