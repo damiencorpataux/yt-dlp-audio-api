@@ -107,6 +107,7 @@ function isURL(str) {
 async function search() {
   const q = ui.search.value.trim();
   if (q.length < 1) return;
+  window.location.hash = q;  // store search in URL hash
 
   // 🔥 Direct play if URL
   if (isURL(q)) {
@@ -161,6 +162,15 @@ async function search() {
     ui.results.appendChild(div);
   });
 }
+document.addEventListener("DOMContentLoaded", () => {
+  // Restore search from URL hash
+  const q = window.location.hash.substr(1);
+    if (q) {
+      ui.search.value = q;
+      search();
+    }
+});
+
 
 /* --------------- PLAYLIST --------------- */
 
@@ -328,6 +338,10 @@ async function play_url(url) {
   } catch(e) {
     console.error('Playback error', e);
     if (e.name == "AbortError") return;  // skip user aborted error
+    if (e.name == "NotAllowedError") {
+      alert("🎼 Press play to start music.");  // this error is raised on autoplay
+      return;
+    }
     alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
     ui.trackname.innerHTML = '';
     throw(e);
@@ -363,7 +377,7 @@ ui.play_rev.addEventListener("click", play_rev);
 // Enable/disable state and icon of play button
 function play_enable(enable) {
   if (enable) {
-    const icon = ui.audio.paused ? "⏸︎" : "▶︎";
+    const icon = ui.audio.paused ? "▶︎" : "⏸︎";
     ui.play.innerHTML = icon;
     ui.play.disabled = false;
     ui.play.classList.remove("active");

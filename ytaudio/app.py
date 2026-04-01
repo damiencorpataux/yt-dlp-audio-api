@@ -61,13 +61,14 @@ async def run_search(query: str):
 
     return results
 
+@lru_cache
 def get_audio_info(url: str):
     ydl_opts = {
         "format": "bestaudio/best",
         "noplaylist": True,
         "quiet": True,
-        "min_sleep_interval": 2,
-        "max_sleep_interval": 5,
+        "min_sleep_interval": 5,
+        "max_sleep_interval": 8,
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
