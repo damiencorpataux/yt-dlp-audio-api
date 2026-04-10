@@ -51,7 +51,8 @@ async function fetch_auth(url, options = {}) {
 
 function get_track_duration() {
   // NOTE: In Chrome, ui.audio.duration is Infinity without Content-Length, ie. when using route /stream/mp3.
-  return isFinite(ui.audio.duration) ? ui.audio.duration : playlist[playlist_position]?.duration;
+  // return isFinite(ui.audio.duration) ? ui.audio.duration : playlist[playlist_position]?.duration;
+  return playlist[playlist_position]?.duration ? playlist[playlist_position]?.duration : ui.audio.duration;
 }
 
 function get_provider_image(provider) {
@@ -164,7 +165,7 @@ async function search() {
 }
 document.addEventListener("DOMContentLoaded", () => {
   // Restore search from URL hash
-  const q = window.location.hash.substr(1);
+  const q = decodeURIComponent(window.location.hash.substr(1));
     if (q) {
       ui.search.value = q;
       search();
@@ -442,13 +443,12 @@ ui.progressBar.addEventListener("touchstart", (e) => play_seek(e.touches[0].clie
 function display_trackinfo(track) {
   // Thumbnail and page URL
   ui.dialog.querySelector("#dialog-content").innerHTML = `
-      <div>
-        <img style="height:120px" src="${track.thumbnail}">
-      </div>
-      <p style="flex:1">
-        <a target="_blank" href="${track.url}">${track.url}</a>
-      </p>
+    <div>
+      <img style="height:120px" src="${track.thumbnail}">
     </div>
+    <p style="flex:1">
+      <a target="_blank" href="${track.url}">${escapeHTML (track.url)}</a>
+    </p>
   `;
 
   // Track metadata
@@ -459,14 +459,14 @@ function display_trackinfo(track) {
     if (key == "description") continue;
     if (key == "acodec") continue;
     if (key == "duration") value = formatTime(value);
-    if (key == "date_added") value = new Date().toLocaleString();
+    if (key == "date_added") value = new Date(value).toLocaleString();
     div.innerHTML += `
       <p>
         <strong style="text-transform:capitalize; color: var(--color-mute)">
           ${key.replace("_", " ")}
         </strong>
         <span>
-          ${value}
+          ${escapeHTML(value)}
         </span>
       </p>
     `;

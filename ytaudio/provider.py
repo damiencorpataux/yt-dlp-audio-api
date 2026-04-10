@@ -69,7 +69,7 @@ def bandcamp(query):
 
     return results
 
-def soundcloud(query: str):
+def soundcloud(query: str, n = 18):
     return [
         AudioItem(
             url=info.get("webpage_url"),
@@ -81,10 +81,10 @@ def soundcloud(query: str):
             acodec=info.get("acodec"),
             provider=None,
         )
-        for info in search_ytdlp(query, provider="scsearch10")
+        for info in search_ytdlp(query, provider=f"scsearch{n}")
     ]
 
-def youtube(query: str):
+def youtube(query: str, n = 18):
     return [
         AudioItem(
             url=info.get("url"),
@@ -96,5 +96,5 @@ def youtube(query: str):
             acodec=info.get("acodec"),
             provider=None,
         )
-        for info in search_ytdlp(query, provider="ytsearch10")
+        for info in search_ytdlp(query, provider=f"ytsearch{n}")
     ]

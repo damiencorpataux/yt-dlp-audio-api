@@ -30,6 +30,7 @@ def get_allowed_keys():
 
 # API Helpers
 
+# @lru_cache  # FIXME: Use async caching decorator
 async def run_search(query: str):
     providers = {
         "bandcamp": provider.bandcamp,
@@ -122,6 +123,7 @@ async def search(q: str):
     try:
         return await run_search(q)
     except Exception as e:
+        print(f"ERROR sarching {q}: {e}")
         raise HTTPException(500, str(e))
 
 @app.get("/info",
@@ -216,8 +218,14 @@ def stream_mp3(request: Request, url: str):
         bufsize=10**6,
     )
 
+    first_chunk = process.stdout.read(1024 * 64)  # read first chunk BEFORE returning response
+    if not first_chunk:
+        process.kill()
+        raise HTTPException(status_code=451, detail="Empty stream")
+
     def iter_stream():
         try:
+            yield first_chunk  # prepend first chunk, then continue normally
             while True:
                 chunk = process.stdout.read(1024 * 64)
                 if not chunk:
