@@ -7,7 +7,7 @@ Personal music searching and streaming app.
 - **Playlist** support
 - **No app**, full browser UI.
 
-![Demo](docs/yt-audio.gif)
+![Demo](docs/ytaudio.gif)
 
 ## Installation
 
@@ -30,18 +30,20 @@ YT Audio uses an API wrapped around [`yt-dlp`](https://github.com/yt-dlp/yt-dlp)
     or **baremetal** on your system
     ```sh
     pip install -r requirements
-    cd yt-audio
+    cd ytaudio
     uvicorn app:app --host 0.0.0.0 --reload
     ```
+
+    > ℹ️ The API is made to run on your local computer or server.
+    >
+    > ⚠️ Be careful to **not expose the API to the public** because requests to music providers are made from your IP address.
+    >
+    > You can enable API authentication by setting `PROFILE=secure` environment variable ([read the code](ytaudio/app.py)).
 
 3. **Search & play music**
 
     Visit http://localhost:8000 if you installed YT Audio on your local computer
     or use the IP/hostname of the server you installed it on.
-
-    ⚠️ Be careful to **not expose the API to the public**
-    because requests to music providers (Bandcamp, Soundcloud, YouTube) are made from your IP address.
-
 
 ## Documentation
 

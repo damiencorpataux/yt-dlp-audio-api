@@ -1,21 +1,75 @@
 import provider
 import ranking
 
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi import FastAPI, APIRouter, Request, Header, Depends, HTTPException
+from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
 from typing import List
 import yt_dlp
 import requests
 import asyncio
 import subprocess
+from functools import lru_cache
+import os
 
-# Helpers
+# API Auth
 
+def auth(x_api_key: str = Header(None)):
+    if os.getenv("PROFILE", "").lower() != "secure":
+        return  # only active when PROFILE=secure
+    if not x_api_key in get_allowed_keys():
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+@lru_cache
+def get_allowed_keys():
+    try:
+        with open("../ytaudio-data/authorized_keys", "r") as f:
+            return {line.strip().split(" ")[0] for line in f}
+    except FileNotFoundError as e:
+        print(f"ERROR authenticating: {e}")
+        return []
+
+# API Helpers
+
+# @lru_cache  # FIXME: Use async caching decorator
+async def run_search(query: str):
+    providers = {
+        "bandcamp": provider.bandcamp,
+        "soundcloud": provider.soundcloud,
+        "youtube": provider.youtube,
+    }
+
+    loop = asyncio.get_running_loop()  # concurrent providers search
+    tasks = {
+        provider_name: loop.run_in_executor(None, search_func, query)
+        for provider_name, search_func in providers.items()
+    }
+
+    results = []
+    for provider_name, executed_task in tasks.items():
+        try:
+            search_results = await executed_task
+        except Exception as e:
+            print(f"ERROR searching '{provider_name}': {e}")
+            search_results = []
+
+        results.extend([
+            item.model_copy(update={"provider": provider_name})
+            for item in search_results
+        ])
+
+    # Ranking
+    results = ranking.rank(results, query)
+
+    return results
+
+@lru_cache
 def get_audio_info(url: str):
     ydl_opts = {
         "format": "bestaudio/best",
-        "quiet": True,
         "noplaylist": True,
+        "quiet": True,
+        "min_sleep_interval": 5,
+        "max_sleep_interval": 8,
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -41,39 +95,6 @@ def get_audio_info(url: str):
         provider=None
     )
 
-# Search
-
-async def run_search(query: str):
-    providers = {
-        "bandcamp": provider.bandcamp,
-        "soundcloud": provider.soundcloud,
-        "youtube": provider.youtube,
-    }
-
-    loop = asyncio.get_running_loop()
-    tasks = {
-        name: loop.run_in_executor(None, func, query)
-        for name, func in providers.items()
-    }
-
-    results = []
-    for name, task in tasks.items():
-        try:
-            data = await task
-        except Exception as e:
-            print(f"ERROR searching '{name}': {e}")
-            data = []
-
-        results.extend([
-            item.model_copy(update={"provider": name})
-            for item in data
-        ])
-
-    # Ranking
-    results = ranking.rank(results, query)
-
-    return results
-
 # API
 
 app = FastAPI(
@@ -81,14 +102,20 @@ app = FastAPI(
     summary="A minimalistic audio REST API to yt-dlp"
 )
 
-@app.get("/")
-def index():
+@app.get("/", response_class=HTMLResponse)
+@app.get("/ui/{static_file:path}", include_in_schema=False)
+def ui(static_file: str = "ui.html"):
     """
     Web UI.
     """
-    return FileResponse('index.html')
+    try:
+        return FileResponse(f"ui/{static_file}")
+    except:
+        raise HTTPException(404)  # FIXME: Does not fire, response is 500 Intenal Server Error
 
-@app.get("/search", response_model=List[provider.AudioItem])
+@app.get("/search",
+         response_model=List[provider.AudioItem],
+         dependencies=[Depends(auth)])
 async def search(q: str):
     """
     Perform search on configured providers (Bandcamp, Soundcloud, YouTube).
@@ -96,17 +123,26 @@ async def search(q: str):
     try:
         return await run_search(q)
     except Exception as e:
+        print(f"ERROR sarching {q}: {e}")
         raise HTTPException(500, str(e))
 
-@app.get("/info", response_model=provider.AudioItem)
-def info(url: str):
+@app.get("/info",
+         response_model=provider.AudioItem,
+         dependencies=[Depends(auth)])
+def get_stream_info(url: str):
+    """
+    Return audio stream information for `url`.
+    """
     try:
         return get_audio_info(url)
     except Exception as e:
         raise HTTPException(500, str(e))
 
-@app.get("/stream", response_class=StreamingResponse, deprecated=True)
-def stream(request: Request, url: str):
+@app.get("/stream",
+         response_class=StreamingResponse,
+         dependencies=[Depends(auth)],
+         deprecated=True)
+def stream_raw(request: Request, url: str):
     """
     Stream audio proxy, with support of headers `Range` and `Content-Length`.
     Deprecated: use direct stream of key `url` from route `/info`.
@@ -152,7 +188,9 @@ def stream(request: Request, url: str):
         media_type=r.headers.get("Content-Type", "application/octet-stream"),
     )
 
-@app.get("/stream/mp3", response_class=StreamingResponse)
+@app.get("/stream/mp3",
+         response_class=StreamingResponse,
+         dependencies=[Depends(auth)])
 def stream_mp3(request: Request, url: str):
     """
     Stream audio transcoded to mp3, without support of headers `Range` and `Content-Length`.
@@ -180,8 +218,14 @@ def stream_mp3(request: Request, url: str):
         bufsize=10**6,
     )
 
+    first_chunk = process.stdout.read(1024 * 64)  # read first chunk BEFORE returning response
+    if not first_chunk:
+        process.kill()
+        raise HTTPException(status_code=451, detail="Empty stream")
+
     def iter_stream():
         try:
+            yield first_chunk  # prepend first chunk, then continue normally
             while True:
                 chunk = process.stdout.read(1024 * 64)
                 if not chunk:
@@ -204,8 +248,10 @@ def stream_mp3(request: Request, url: str):
         media_type="audio/mpeg",
     )
 
-@app.get("/update", response_class=StreamingResponse)
-def update():
+@app.get("/update",
+         response_class=StreamingResponse,
+         dependencies=[Depends(auth)])
+def update_provider():
     """
     Upgrade `yt-dlp`. Quick hack.
     """

@@ -1,295 +1,3 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>YT Audio</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎧</text></svg>">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-
-  <style>
-
-    /* Global styling */
-
-    :root {
-      --color-text: #ccc;
-      --color-mute: gray;
-      --color-accent: #4da3ff;
-      --color-highlight: darkred;
-      --color-bg: #141414;
-      --color-panel: #222;
-      --color-border: #333;
-      --radius: 4px;
-    }
-
-    html, body {
-      overscroll-behavior: none;
-      overflow: hidden;  /* prevent page scroll */
-    }
-
-    body {
-      padding: 20px;
-      background: var(--color-bg);
-      color: var(--color-text);
-      font-family: system-ui, -apple-system, sans-serif;
-      font-size: 14px;
-    }
-
-    hr {
-      margin: 16px 0;
-      border: none;
-      height: 1px;
-      background-color: var(--color-panel);
-    }
-
-    input, button {
-      background: var(--color-panel);
-      color: var(--color-text);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius);
-      padding: 6px;
-    }
-    input:focus, button:focus {
-      color: white;
-      outline: none;
-    }
-
-    button {
-      cursor: pointer;
-    }
-    button:active {
-      background-color: var(--color-highlight);
-    }
-
-    a {
-      color: var(--color-accent);
-      text-decoration: none;
-    }
-
-    img {
-      border-radius: var(--radius);
-    }
-
-    p {
-      margin-top: 0;
-      margin-bottom: .5lh;
-    }
-
-    /* Utiliy classes */
-
-    .row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .active {
-      border-color: var(--color-highlight);
-    }
-
-    /* Specific components styling */
-
-    .app {
-      display: grid;
-      grid-template-rows: auto 1fr;  /* explicit rows */
-      height: calc(100dvh - 40px);
-    }
-
-    .header {
-      min-width: 0; /* necessary for #trackname overflow */
-    }
-    .header h1 {
-      font-size: 24px;
-      color: var(--color-mute);
-    }
-
-    #searchInput:focus {
-      border: 1px solid var(--color-accent);
-      /* box-shadow: 0 0 16px var(--color-accent); */
-    }
-
-    #trackname {
-      min-height: 1lh;
-      white-space: nowrap;
-      overflow: scroll;
-      scrollbar-width: none;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius);
-    }
-
-    #playlist {
-      max-height:20vh;
-    }
-    .playlist-item {
-      margin-bottom: 4px;
-      border-radius: var(--radius);
-    }
-    .playlist-item .duration {
-      color: var(--color-mute);
-    }
-    .playlist-item.current-position {
-      background-color: var(--color-border);
-    }
-    .playlist-item.current-position button.playlist-play{
-      border-color: transparent;
-    }
-    .playlist-item {
-      cursor: grab;
-    }
-    .playlist-item:active {
-      cursor: grabbing;
-    }
-
-    .result-item {
-      padding: 8px;
-      gap: 18px;
-    }
-    .result-item:hover,
-    .playlist-item:hover {
-      background: var(--color-panel);
-      border-radius: var(--radius);
-    }
-    .result-item img.thumbnail {
-      width: 120px;
-    }
-    .result-item button {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      padding: 0;
-      opacity: .66;
-    }
-    .result-item button.result-play {
-      position: absolute;
-      bottom: 2px;
-      right: 2px;
-      background-color: var(--color-highlight);
-    }
-    .result-item button.result-enqueue {
-      position: absolute;
-      bottom: 2px;
-      left: 2px;
-      background-color: var(--color-border);
-    }
-
-    .progress {
-      height: 10px;
-      border-radius: var(--radius);
-      background: var(--color-panel);
-      position: relative;
-      cursor: pointer;
-    }
-    .progress .buffered {
-      position: absolute;
-      height: 100%;
-      background: var(--color-border);
-      width: 0%;
-    }
-    .progress .played {
-      position: absolute;
-      height: 100%;
-      background: var(--color-accent);
-      width: 0%;
-    }
-
-    #dialog {
-      top: 50%;
-      transform: translateY(-50%);
-      margin: 16px;
-      padding: 8px;
-      color: var(--color-text);
-      background-color: var(--color-panel);
-      border: 1px solid var(--color-border);
-    }
-
-    /* Mobile */
-
-    @media (max-width: 420px) {
-      body {
-        padding: 6px;
-      }
-      body, input, button {
-        font-size: 12px;
-      }
-      .header h1 {
-        font-size: 16px;
-      }
-      .result-item img.thumbnail {
-        width: 75px;
-      }
-    }
-  </style>
-</head>
-
-<body>
-<div class="app">
-  <div class="header">
-    <!-- HEADER -->
-    <div class="row" style="align-items:baseline">
-      <h1 style="margin-top:0; flex:1">
-        <span>🎧</span>
-        &nbsp;
-        <span>YT Audio</span>
-      </h1>
-      <a href="https://github.com/damiencorpataux/yt-dlp-audio-api">
-        <img style="height:1lh; filter:brightness(2)" src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg">
-      </a>
-    </div>
-
-    <!-- PLAYER TRACK NAME -->
-    <div class="row" style="align-items:center; gap: 16px; margin-bottom:8px">
-      <span id="trackname" style="flex:1; padding: 6px 6px 6px 12px">
-        Ready. Search. Play.
-      </span>
-      <button id="playlist-toggle" class="active">
-        ≡
-      </button>
-    </div>
-    <!-- PLAYER CONTROLS -->
-    <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
-      <div>
-        <button id="play" style="width:36px">⌛</button>
-        <button id="play-rev" style="width:28px">⏪︎</button>
-        <button id="play-ffwd" style="width:28px">⏩︎</button>
-      </div>
-      <span id="time_current" style="font-family:monospace">0:00</span>
-      <div id="progressBar" class="progress" style="flex:1">
-        <div id="bufferedBar" class="buffered"></div>
-        <div id="playedBar" class="played"></div>
-      </div>
-      <span id="time_total" style="font-family:monospace">0:00</span>
-    </div>
-    <hr>
-    <!-- PLAYLIST -->
-    <div id="playlist-container">
-      <div id="playlist" style="min-height:0; overflow:scroll"></div>
-      <hr>
-    </div>
-  </div>
-
-  <div style="overflow-y:auto">
-    <!-- SEARCH -->
-    <form class="row" style="margin-bottom:8px" onsubmit="search(); return false;">
-      <input id="searchInput" autofocus placeholder="♪ Search or paste URL" style="flex:1">
-      <button>Search</button>
-    </form>
-    <!-- RESULTS -->
-    <div id="results"></div>
-  </div>
-
-  <audio id="audio"></audio>
-
-  <!-- TRACK INFO -->
-  <dialog id="dialog" popover>
-    <div id="dialog-content"></div>
-    <button popovertarget="dialog" popovertargetaction="hide" style="position:absolute; bottom:10px; right: 10px">
-      ╳
-    </button>
-  </dialog>
-
-</div>
-
-<script>
 const API_URL = "";
 
 const ui = {
@@ -310,11 +18,41 @@ const ui = {
   dialog: document.getElementById("dialog")
 };
 
+/* ---------------- API Auth -------------- */
+
+// Store a new API key in local storage.
+const updated_key = new URLSearchParams(window.location.search).get("key");
+if (updated_key) {
+  localStorage.api_key = updated_key;
+  alert("🧒 Welcome")
+  window.location = window.location.href.split("?")[0];
+}
+
+// Perform xhr request including API key headers.
+async function fetch_auth(url, options = {}) {
+  const headers = {
+    ...(options.headers || {}),
+    "X-API-Key": localStorage.api_key
+  };
+
+  const response = await fetch(url, {
+    ...options,
+    headers
+  });
+
+  if (response.status === 401) {
+    console.error("Unauthorized - invalid API key");
+    alert("🧒 Please kindly ask for a valid API key");
+  }
+  return response;
+}
+
 /* ---------------- HELPERS --------------- */
 
 function get_track_duration() {
   // NOTE: In Chrome, ui.audio.duration is Infinity without Content-Length, ie. when using route /stream/mp3.
-  return isFinite(ui.audio.duration) ? ui.audio.duration : playlist[playlist_position]?.duration;
+  // return isFinite(ui.audio.duration) ? ui.audio.duration : playlist[playlist_position]?.duration;
+  return playlist[playlist_position]?.duration ? playlist[playlist_position]?.duration : ui.audio.duration;
 }
 
 function get_provider_image(provider) {
@@ -370,6 +108,7 @@ function isURL(str) {
 async function search() {
   const q = ui.search.value.trim();
   if (q.length < 1) return;
+  window.location.hash = q;  // store search in URL hash
 
   // 🔥 Direct play if URL
   if (isURL(q)) {
@@ -384,7 +123,7 @@ async function search() {
 
   let data;
   try {
-    const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`);
+    const res = await fetch_auth(`${API_URL}/search?q=${encodeURIComponent(q)}`);
     data = await res.json();
   } catch(e) {
     // FIXME: Doesn't execute when response is 500 (with valid json eror detail).
@@ -424,6 +163,15 @@ async function search() {
     ui.results.appendChild(div);
   });
 }
+document.addEventListener("DOMContentLoaded", () => {
+  // Restore search from URL hash
+  const q = decodeURIComponent(window.location.hash.substr(1));
+    if (q) {
+      ui.search.value = q;
+      search();
+    }
+});
+
 
 /* --------------- PLAYLIST --------------- */
 
@@ -446,7 +194,6 @@ function playlist_enqueue(track) {
     // append track to playlist
     if (track.url) playlist.push(track);
     track.date_added = Date.now();  // save the timestamp
-    localStorage.playlist = JSON.stringify(playlist);
     playlist_redraw();
     return playlist.length-1;
   }
@@ -457,16 +204,18 @@ function playlist_dequeue(position) {
   if (confirm(`♪ ${playlist[position].title}\n\nRemove track from playlist ?`)) {
     playlist.splice(position, 1);
     if (position == playlist_position) playlist_position = null;
-    localStorage.playlist = JSON.stringify(playlist);
-    localStorage.playlist_position = playlist_position;
     playlist_redraw();
   }
 }
 
 let dragIndex = null;
 function playlist_redraw() {
-  ui.playlist.innerHTML = playlist.length ? '' : 'Playlist is empty. Just search and play some music !';
+  // Save playlist to local storage
+  localStorage.playlist = JSON.stringify(playlist);
+  localStorage.playlist_position = playlist_position;
 
+  // Redraw playlist
+  ui.playlist.innerHTML = playlist.length ? '' : 'Playlist is empty. Just search and play some music !';
   for (const [i, track] of playlist.entries()) {
     const wrapper = document.createElement("div");
 
@@ -502,10 +251,13 @@ function playlist_redraw() {
     item.addEventListener("dragover", (e) => e.preventDefault());  // REQUIRED for drop
     item.addEventListener("drop", () => {
       if (dragIndex === null || dragIndex === i) return;
+      const playlist_position_url = playlist[playlist_position].url;  // Save playlist position
       const moved = playlist.splice(dragIndex, 1)[0];
       playlist.splice(i, 0, moved);
       dragIndex = null;
-      playlist_redraw();
+      console.log(playlist_position, playlist_get_position_by_url(playlist_position_url), playlist_position_url)
+      playlist_position = playlist_get_position_by_url(playlist_position_url);  // Restore playlist position
+      playlist_redraw();  // FIXME: Update playlist_position.
     });
 
     ui.playlist.appendChild(wrapper);
@@ -542,7 +294,6 @@ function play_position(position) {
     return;
   }
   playlist_position = position;
-  localStorage.playlist_position = playlist_position;
   playlist_redraw();
   ui.playlist.children[position].scrollIntoView({behavior:"smooth"});
   const track = playlist[position];
@@ -556,17 +307,16 @@ async function play_url(url) {
   ui.trackname.innerHTML = '♪ Loading track...'
 
   console.debug('Loading info for URL', url);
-  const info_res = await fetch(`${API_URL}/info?url=${encodeURIComponent(url)}`)
+  const info_res = await fetch_auth(`${API_URL}/info?url=${encodeURIComponent(url)}`)
   const info = await info_res.json();
   ui.trackname.innerHTML = escapeHTML(info.title || 'Unknown track name');
 
   // Re-save track info in playlist (for direct URL play, and bandcamp search results missing duration)
-  playlist_track = playlist[playlist_get_position_by_url(url)];
+  const playlist_track = playlist[playlist_get_position_by_url(url)];
   if (playlist_track) {
     playlist_track.title = info.title;
     playlist_track.duration = info.duration;
     playlist_track.thumbnail = info.thumbnail;
-    localStorage.playlist = JSON.stringify(playlist);
     playlist_redraw();
   }
 
@@ -589,6 +339,10 @@ async function play_url(url) {
   } catch(e) {
     console.error('Playback error', e);
     if (e.name == "AbortError") return;  // skip user aborted error
+    if (e.name == "NotAllowedError") {
+      alert("🎼 Press play to start music.");  // this error is raised on autoplay
+      return;
+    }
     alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
     ui.trackname.innerHTML = '';
     throw(e);
@@ -624,7 +378,7 @@ ui.play_rev.addEventListener("click", play_rev);
 // Enable/disable state and icon of play button
 function play_enable(enable) {
   if (enable) {
-    const icon = ui.audio.paused ? "⏸︎" : "▶︎";
+    const icon = ui.audio.paused ? "▶︎" : "⏸︎";
     ui.play.innerHTML = icon;
     ui.play.disabled = false;
     ui.play.classList.remove("active");
@@ -689,13 +443,12 @@ ui.progressBar.addEventListener("touchstart", (e) => play_seek(e.touches[0].clie
 function display_trackinfo(track) {
   // Thumbnail and page URL
   ui.dialog.querySelector("#dialog-content").innerHTML = `
-      <div>
-        <img style="height:120px" src="${track.thumbnail}">
-      </div>
-      <p style="flex:1">
-        <a target="_blank" href="${track.url}">${track.url}</a>
-      </p>
+    <div>
+      <img style="height:120px" src="${track.thumbnail}">
     </div>
+    <p style="flex:1">
+      <a target="_blank" href="${track.url}">${escapeHTML (track.url)}</a>
+    </p>
   `;
 
   // Track metadata
@@ -706,14 +459,14 @@ function display_trackinfo(track) {
     if (key == "description") continue;
     if (key == "acodec") continue;
     if (key == "duration") value = formatTime(value);
-    if (key == "date_added") value = new Date().toLocaleString();
+    if (key == "date_added") value = new Date(value).toLocaleString();
     div.innerHTML += `
       <p>
         <strong style="text-transform:capitalize; color: var(--color-mute)">
           ${key.replace("_", " ")}
         </strong>
         <span>
-          ${value}
+          ${escapeHTML(value)}
         </span>
       </p>
     `;
@@ -746,8 +499,3 @@ ui.audio.addEventListener("canplay", () => console.log("can play"));
 ui.audio.addEventListener("waiting", () => console.log("waiting"));
 ui.audio.addEventListener("stalled", () => console.log("stalled"));
 ui.audio.addEventListener("ended", (e) => console.log("ended", e));
-
-</script>
-
-</body>
-</html>

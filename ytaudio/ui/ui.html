@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>YT Audio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎧</text></svg>">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" type="text/css" href="/ui/ui.css">
+</head>
+
+<body>
+<div class="app">
+  <div class="header">
+    <!-- HEADER -->
+    <div class="row" style="align-items:baseline">
+      <h1 style="margin-top:0; flex:1">
+        <span>🎧</span>
+        &nbsp;
+        <span>YT Audio</span>
+      </h1>
+      <a href="https://github.com/damiencorpataux/yt-dlp-audio-api">
+        <img style="height:1lh; filter:brightness(2)" src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg">
+      </a>
+    </div>
+
+    <!-- PLAYER TRACK NAME -->
+    <div class="row" style="align-items:center; gap: 16px; margin-bottom:8px">
+      <span id="trackname" style="flex:1; padding: 6px 6px 6px 12px">
+        Ready. Search. Play.
+      </span>
+      <button id="playlist-toggle" class="active">
+        ≡
+      </button>
+    </div>
+    <!-- PLAYER CONTROLS -->
+    <div class="row" style="gap:12px; align-items:center; justify-content:space-between">
+      <div>
+        <button id="play" style="width:36px">⌛</button>
+        <button id="play-rev" style="width:28px">⏪︎</button>
+        <button id="play-ffwd" style="width:28px">⏩︎</button>
+      </div>
+      <span id="time_current" style="font-family:monospace">0:00</span>
+      <div id="progressBar" class="progress" style="flex:1">
+        <div id="bufferedBar" class="buffered"></div>
+        <div id="playedBar" class="played"></div>
+      </div>
+      <span id="time_total" style="font-family:monospace">0:00</span>
+    </div>
+    <hr>
+    <!-- PLAYLIST -->
+    <div id="playlist-container">
+      <div id="playlist" style="min-height:0; overflow:scroll"></div>
+      <hr>
+    </div>
+  </div>
+
+  <div style="overflow-y:auto">
+    <!-- SEARCH -->
+    <form class="row" style="margin-bottom:8px" onsubmit="search(); return false;">
+      <input id="searchInput" autofocus placeholder="♪ Search or paste URL" style="flex:1">
+      <button>Search</button>
+    </form>
+    <!-- RESULTS -->
+    <div id="results"></div>
+  </div>
+
+  <audio id="audio"></audio>
+
+  <!-- TRACK INFO -->
+  <dialog id="dialog" popover>
+    <div id="dialog-content"></div>
+    <button popovertarget="dialog" popovertargetaction="hide" style="position:absolute; bottom:10px; right: 10px">
+      ╳
+    </button>
+  </dialog>
+
+</div>
+
+<script src="/ui/ui.js"></script>
+</body>
+</html>

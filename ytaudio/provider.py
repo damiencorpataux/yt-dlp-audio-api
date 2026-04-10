@@ -28,6 +28,8 @@ def search_ytdlp(query: str, provider="ytsearch10"):
         "quiet": True,
         "skip_download": True,
         "extract_flat": True,
+        "min_sleep_interval": 2,
+        "max_sleep_interval": 5,
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -67,7 +69,7 @@ def bandcamp(query):
 
     return results
 
-def soundcloud(query: str):
+def soundcloud(query: str, n = 18):
     return [
         AudioItem(
             url=info.get("webpage_url"),
@@ -79,10 +81,10 @@ def soundcloud(query: str):
             acodec=info.get("acodec"),
             provider=None,
         )
-        for info in search_ytdlp(query, provider="scsearch10")
+        for info in search_ytdlp(query, provider=f"scsearch{n}")
     ]
 
-def youtube(query: str):
+def youtube(query: str, n = 18):
     return [
         AudioItem(
             url=info.get("url"),
@@ -94,5 +96,5 @@ def youtube(query: str):
             acodec=info.get("acodec"),
             provider=None,
         )
-        for info in search_ytdlp(query, provider="ytsearch10")
+        for info in search_ytdlp(query, provider=f"ytsearch{n}")
     ]
