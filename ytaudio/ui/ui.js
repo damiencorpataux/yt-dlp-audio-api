@@ -506,16 +506,13 @@ high.Q.value = .75;
 // Filter (Mixxx-style)
 const lp = ctx.createBiquadFilter();
 lp.type = "lowpass";
-lp.frequency.value = 20000;
-lp.Q.value = 2;
+lp.frequency.value = 16000;
+lp.Q.value = 1;
 
 const hp = ctx.createBiquadFilter();
 hp.type = "highpass";
-hp.frequency.value = 20;
-hp.Q.value = 2;
-
-const lpGain = ctx.createGain();
-const hpGain = ctx.createGain();
+hp.frequency.value = 800;
+hp.Q.value = 1;
 
 // Routing
 ui.source.connect(low);
@@ -524,6 +521,8 @@ mid.connect(high);
 
 // split for filter
 const dryGain = ctx.createGain();
+const lpGain = ctx.createGain();
+const hpGain = ctx.createGain();
 
 high.connect(dryGain);
 dryGain.connect(ctx.destination);
