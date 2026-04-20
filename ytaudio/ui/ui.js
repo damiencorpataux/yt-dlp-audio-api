@@ -250,6 +250,7 @@ function playlist_redraw() {
     // Highlight track currently playing
     if (i == playlist_position) {
       item.classList.add("current-position");
+      document.querySelector(".header").style.backgroundImage = `url("${playlist[i].thumbnail}")`;
     }
 
     // Click events

@@ -90,7 +90,7 @@ p {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--color-panel);
+  /* background: var(--color-panel); */
   border: 2px solid var(--color-border);
   position: relative;
   cursor: grab;
@@ -123,6 +123,13 @@ p {
 
 .header {
   min-width: 0; /* necessary for #trackname overflow */
+  position: relative; /* display track thumbnail as background */
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: rgba(0, 0, 0, 0.75);
+  background-blend-mode: darken;
 }
 .header h1 {
   font-size: 24px;
