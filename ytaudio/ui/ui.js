@@ -354,7 +354,11 @@ async function play_url(url) {
       alert("🎼 Press play to start music.");  // this error is raised on autoplay
       return;
     }
-    alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
+    if (playlist.length > playlist_position) {
+      play_next();
+    } else {
+      alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
+    }
     ui.trackname.innerHTML = '';
     throw(e);
   }
