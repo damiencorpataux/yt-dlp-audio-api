@@ -18,6 +18,19 @@ const ui = {
   dialog: document.getElementById("dialog")
 };
 
+// Use AudioContext (for EQ ad Filter)
+const ctx = new AudioContext();
+ui.source = ctx.createMediaElementSource(ui.audio);
+async function unlockAudio() {
+  if (ctx.state !== "running") {
+    await ctx.resume();
+  }
+}
+["click", "touchstart", "keydown"].forEach(evt => {
+  document.addEventListener(evt, unlockAudio, { once: true });
+});
+
+
 /* ---------------- API Auth -------------- */
 
 // Store a new API key in local storage.
@@ -98,7 +111,6 @@ document.addEventListener("dragover", (e) => {
   }
 });
 
-
 /* ---------------- SEARCH ---------------- */
 
 function isURL(str) {
@@ -172,7 +184,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-
 /* --------------- PLAYLIST --------------- */
 
 const playlist = JSON.parse(localStorage.playlist || null) || [];
@@ -239,6 +250,7 @@ function playlist_redraw() {
     // Highlight track currently playing
     if (i == playlist_position) {
       item.classList.add("current-position");
+      document.querySelector(".header").style.backgroundImage = `url("${playlist[i].thumbnail}")`;
     }
 
     // Click events
@@ -343,19 +355,23 @@ async function play_url(url) {
       alert("🎼 Press play to start music.");  // this error is raised on autoplay
       return;
     }
-    alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
+    if (playlist.length > playlist_position) {
+      play_next();
+    } else {
+      alert(`❌ Playback failed. Please try again.\n\n${String(e)}`);
+    }
     ui.trackname.innerHTML = '';
     throw(e);
   }
 }
 
 // Playback buttons (play/pause, ffwd, rev)
-function play_toggle() {
+async function play_toggle() {
   if (ui.play.disabled) return;
   const audio_loaded = ui.audio.readyState >= 4;
   if (ui.audio.paused) {
     if (audio_loaded) {
-      ui.audio.play();  // if audio is loaded, then play the audio
+      await ui.audio.play();  // if audio is loaded, then play the audio
     } else if (playlist.length) {
       play_position(playlist_position);  // if no audio is loaded, then play the position in playlist
     } else {
@@ -474,6 +490,181 @@ function display_trackinfo(track) {
   ui.dialog.querySelector("#dialog-content").appendChild(div);
   ui.dialog.showPopover();
 }
+
+/* ------------------ EQ ------------------- */
+
+const low = ctx.createBiquadFilter();
+low.type = "lowshelf";
+low.frequency.value = 200;
+low.Q.value = .85;
+
+const mid = ctx.createBiquadFilter();
+mid.type = "peaking";
+mid.frequency.value = 1000;
+mid.Q.value = .95;
+
+const high = ctx.createBiquadFilter();
+high.type = "highshelf";
+high.frequency.value = 4000;
+high.Q.value = .75;
+
+// Filter (Mixxx-style)
+const lp = ctx.createBiquadFilter();
+lp.type = "lowpass";
+lp.frequency.value = 16000;
+lp.Q.value = 1;
+
+const hp = ctx.createBiquadFilter();
+hp.type = "highpass";
+hp.frequency.value = 800;
+hp.Q.value = 1;
+
+// Routing
+ui.source.connect(low);
+low.connect(mid);
+mid.connect(high);
+
+// split for filter
+const dryGain = ctx.createGain();
+const lpGain = ctx.createGain();
+const hpGain = ctx.createGain();
+
+high.connect(dryGain);
+dryGain.connect(ctx.destination);
+
+high.connect(lp);
+lp.connect(lpGain);
+lpGain.connect(ctx.destination);
+
+high.connect(hp);
+hp.connect(hpGain);
+hpGain.connect(ctx.destination);
+
+function applyFilter(v) {
+  const now = ctx.currentTime;
+
+  if (v < 0) {
+    const amt = -v;
+
+    const freq = 20000 * Math.pow(0.01, amt);
+    lp.frequency.setTargetAtTime(freq, now, 0.01);
+
+    dryGain.gain.setTargetAtTime(1 - amt, now, 0.01);
+    lpGain.gain.setTargetAtTime(amt, now, 0.01);
+    hpGain.gain.setTargetAtTime(0, now, 0.01);
+
+  } else if (v > 0) {
+    const amt = v;
+
+    const freq = 20 * Math.pow(1000, amt);
+    hp.frequency.setTargetAtTime(freq, now, 0.01);
+
+    dryGain.gain.setTargetAtTime(1 - amt, now, 0.01);
+    hpGain.gain.setTargetAtTime(amt, now, 0.01);
+    lpGain.gain.setTargetAtTime(0, now, 0.01);
+
+  } else {
+    // TRUE neutral (important!)
+    dryGain.gain.setTargetAtTime(1, now, 0.01);
+    lpGain.gain.setTargetAtTime(0, now, 0.01);
+    hpGain.gain.setTargetAtTime(0, now, 0.01);
+  }
+}
+
+function setupKnobs() {
+  document.querySelectorAll(".knob").forEach(knob => {
+    const dial = knob.querySelector(".knob-dial");
+    const param = knob.dataset.param;
+
+    let value = 0; // -1 → +1
+    let dragging = false;
+    let startY = 0;
+
+    let lastTap = 0; // for double-tap
+
+    function clamp(v) {
+      return Math.max(-1, Math.min(1, v));
+    }
+
+    function updateVisual() {
+      const angle = value * 135;
+      dial.style.transform = `rotate(${angle}deg)`;
+    }
+
+    function applyAudio() {
+      switch (param) {
+        case "low":
+          low.gain.setTargetAtTime(value * 12, ctx.currentTime, 0.01);
+          break;
+        case "mid":
+          mid.gain.setTargetAtTime(value * 12, ctx.currentTime, 0.01);
+          break;
+        case "high":
+          high.gain.setTargetAtTime(value * 12, ctx.currentTime, 0.01);
+          break;
+        case "filter":
+          applyFilter(value);
+          break;
+      }
+    }
+
+    function setValue(v) {
+      value = clamp(v);
+      updateVisual();
+      applyAudio();
+    }
+
+    function onPointerDown(e) {
+      e.preventDefault();
+
+      const now = Date.now();
+      const delta = now - lastTap;
+      lastTap = now;
+
+      // Double tap / double click → reset
+      if (delta < 300) {
+        setValue(0);
+        return;
+      }
+
+      dragging = true;
+      startY = e.clientY;
+      dial.setPointerCapture?.(e.pointerId);
+      dial.style.cursor = "grabbing";
+    }
+
+    function onPointerMove(e) {
+      if (!dragging) return;
+
+      const delta = (startY - e.clientY) / 100;
+      startY = e.clientY;
+
+      setValue(value + delta);
+    }
+
+    function onPointerUp(e) {
+      dragging = false;
+      dial.releasePointerCapture?.(e.pointerId);
+      dial.style.cursor = "grab";
+    }
+
+    // Pointer events (works for mouse + touch + pen)
+    dial.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+
+    // Desktop fallback (dblclick explicitly)
+    dial.addEventListener("dblclick", () => setValue(0));
+
+    // Prevent page scroll while dragging on mobile
+    dial.addEventListener("touchstart", e => e.preventDefault(), { passive: false });
+
+    // Init
+    setValue(0);
+  });
+}
+
+setupKnobs();
 
 /* ---------------- HOTKEYS ---------------- */
 
