@@ -630,7 +630,6 @@ function setupKnobs() {
       dragging = true;
       startY = e.clientY;
       dial.setPointerCapture?.(e.pointerId);
-      dial.style.cursor = "grabbing";
     }
 
     function onPointerMove(e) {
@@ -645,7 +644,6 @@ function setupKnobs() {
     function onPointerUp(e) {
       dragging = false;
       dial.releasePointerCapture?.(e.pointerId);
-      dial.style.cursor = "grab";
     }
 
     // Pointer events (works for mouse + touch + pen)

@@ -94,7 +94,6 @@ p {
   /* background: var(--color-panel); */
   border: 2px solid var(--color-border);
   position: relative;
-  cursor: grab;
 }
 
 .knob-dial::after {
