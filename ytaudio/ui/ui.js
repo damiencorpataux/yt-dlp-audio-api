@@ -491,17 +491,17 @@ function display_trackinfo(track) {
 const low = ctx.createBiquadFilter();
 low.type = "lowshelf";
 low.frequency.value = 200;
-low.Q.value = 1.25;
+low.Q.value = .85;
 
 const mid = ctx.createBiquadFilter();
 mid.type = "peaking";
 mid.frequency.value = 1000;
-mid.Q.value = 1;
+mid.Q.value = .95;
 
 const high = ctx.createBiquadFilter();
 high.type = "highshelf";
 high.frequency.value = 4000;
-high.Q.value = 1.5;
+high.Q.value = .75;
 
 // Filter (Mixxx-style)
 const lp = ctx.createBiquadFilter();
