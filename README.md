@@ -7,7 +7,7 @@ Personal music searching and streaming app.
 - **Playlist** support
 - **No app**, full browser UI.
 
-![Demo](docs/ytaudio.gif)
+![Demo](docs/ytaudio.png)
 
 ## Installation
 
