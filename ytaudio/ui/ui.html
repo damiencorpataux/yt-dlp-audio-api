@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>YT Audio</title>
+  <title>Audio.</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎧</text></svg>">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="mobile-web-app-capable" content="yes">
@@ -17,7 +17,7 @@
       <h1 style="margin-top:0; flex:1">
         <span>🎧</span>
         &nbsp;
-        <span>YT Audio</span>
+        <span>Audio.</span>
       </h1>
       <a href="https://github.com/damiencorpataux/yt-dlp-audio-api">
         <img style="height:1lh; filter:brightness(2)" src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg">
@@ -47,6 +47,25 @@
       </div>
       <span id="time_total" style="font-family:monospace">0:00</span>
     </div>
+    <!-- EQ -->
+    <div class="row" id="mixer" style="justify-content:space-around; margin-top:8px">
+      <div class="knob" data-param="low">
+        <div class="knob-dial"></div>
+        <label>LOW</label>
+      </div>
+      <div class="knob" data-param="mid">
+        <div class="knob-dial"></div>
+        <label>MID</label>
+      </div>
+      <div class="knob" data-param="high">
+        <div class="knob-dial"></div>
+        <label>HIGH</label>
+      </div>
+      <div class="knob" data-param="filter">
+        <div class="knob-dial"></div>
+        <label>FILTER</label>
+      </div>
+    </div>
     <hr>
     <!-- PLAYLIST -->
     <div id="playlist-container">
@@ -65,7 +84,7 @@
     <div id="results"></div>
   </div>
 
-  <audio id="audio"></audio>
+  <audio id="audio" crossorigin="anonymous"></audio>
 
   <!-- TRACK INFO -->
   <dialog id="dialog" popover>

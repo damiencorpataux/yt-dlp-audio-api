@@ -7,7 +7,7 @@
   --color-highlight: darkred;
   --color-bg: #141414;
   --color-panel: #222;
-  --color-border: #333;
+  --color-border: #555;
   --radius: 4px;
 }
 
@@ -17,7 +17,8 @@ html, body {
 }
 
 body {
-  padding: 20px;
+  padding: 0;
+  margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: system-ui, -apple-system, sans-serif;
@@ -76,6 +77,42 @@ p {
   border-color: var(--color-highlight);
 }
 
+/* Knobs */
+
+.knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+
+.knob-dial {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  /* background: var(--color-panel); */
+  border: 2px solid var(--color-border);
+  position: relative;
+}
+
+.knob-dial::after {
+  content: "";
+  position: absolute;
+  width: 2px;
+  height: 10px;
+  background: var(--color-accent);
+  top: 0px;
+  left: 50%;
+  transform: translateX(-50%);
+  transform-origin: bottom center;
+}
+
+.knob label {
+  font-size: 10px;
+  color: var(--color-mute);
+}
+
 /* Specific components styling */
 
 .app {
@@ -85,7 +122,15 @@ p {
 }
 
 .header {
+  padding: 12px 12px 0 12px;
   min-width: 0; /* necessary for #trackname overflow */
+  position: relative; /* display track thumbnail as background */
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: rgba(0, 0, 0, 0.75);
+  background-blend-mode: darken;
 }
 .header h1 {
   font-size: 24px;
