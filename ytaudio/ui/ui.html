@@ -47,6 +47,24 @@
       </div>
       <span id="time_total" style="font-family:monospace">0:00</span>
     </div>
+    <div class="row" id="mixer" style="justify-content:space-around; margin-top:8px">
+      <div class="knob" data-param="low">
+        <div class="knob-dial"></div>
+        <label>LOW</label>
+      </div>
+      <div class="knob" data-param="mid">
+        <div class="knob-dial"></div>
+        <label>MID</label>
+      </div>
+      <div class="knob" data-param="high">
+        <div class="knob-dial"></div>
+        <label>HIGH</label>
+      </div>
+      <div class="knob" data-param="filter">
+        <div class="knob-dial"></div>
+        <label>FILTER</label>
+      </div>
+    </div>
     <hr>
     <!-- PLAYLIST -->
     <div id="playlist-container">
@@ -65,7 +83,7 @@
     <div id="results"></div>
   </div>
 
-  <audio id="audio"></audio>
+  <audio id="audio" crossorigin="anonymous"></audio>
 
   <!-- TRACK INFO -->
   <dialog id="dialog" popover>
